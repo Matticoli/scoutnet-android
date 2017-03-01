@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "515853549511",
+    "firebase_url": "https://scoutnet-d920d.firebaseio.com",
+    "project_id": "scoutnet-d920d",
+    "storage_bucket": "scoutnet-d920d.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:515853549511:android:374b59596030de39",
+        "android_client_info": {
+          "package_name": "io.github.matticoli.scoutnet"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "515853549511-pkcfaqfjp2217cto4ssji83set22dits.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "io.github.matticoli.scoutnet",
+            "certificate_hash": "8e385cac0030008328a7cc17d04d321d38c9e8ac"
+          }
+        },
+        {
+          "client_id": "515853549511-d7kssn2bs9ri6a09bkf8npudanec2g2m.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAJXZuFms1BnoCh9KyVB2A8iLy6HdD-vdY"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "515853549511-d7kssn2bs9ri6a09bkf8npudanec2g2m.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
