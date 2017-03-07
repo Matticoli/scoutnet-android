@@ -1,2 +1,2 @@
-# scoutnet-android
-ScoutNet Android Client
+# team-stock
+Collaborative Inventory App
