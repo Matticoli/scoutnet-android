@@ -1,0 +1,129 @@
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="description" content="Scouting Platform">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team-Stock</title>
+    
+    <!-- Disable tap highlight on IE -->
+    <meta name="msapplication-tap-highlight" content="no">
+
+    <!-- Web Application Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Add to homescreen for Chrome on Android -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="ScoutNet">
+    <meta name="theme-color" content="#303F9F">
+
+    <!-- Add to homescreen for Safari on iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ScoutNet">
+    <meta name="apple-mobile-web-app-status-bar-style" content="#303F9F">
+
+    <!-- Tile icon for Win8 -->
+    <meta name="msapplication-TileColor" content="#3372DF">
+    <meta name="msapplication-navbutton-color" content="#303F9F">
+    
+    <!-- Material Design Lite -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://code.getmdl.io/1.1.3/material.orange-indigo.min.css">
+    <script defer src="https://code.getmdl.io/1.1.3/material.min.js"></script>
+<!--  TODO: Download these stylesheets^^  -->
+    <!--  Google Fonts  -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:regular,bold,italic,thin,light,bolditalic,black,medium&amp;lang=en">
+
+    <!-- Bootstrap Core stylesheets -->
+    <link rel="stylesheet" type="text/css" href="./css/bootstrap.min.css">
+    
+    <!--  Custom Stylesheets  -->
+    <link rel="stylesheet" type="text/css" href="./css/main.css">
+    
+<!--    TODO: Favicon and logo-->
+</head>
+
+<body id="body" data-spy="scroll" data-target=".navbar-fixed-top">
+<!--    Navbar   -->
+    <nav class="navbar navbar-custom navbar-fixed-top" role="navigation">
+        <div id="user-container" class="container">
+            <div class="navbar-header">
+                <div class="nav-left">
+                    <select class="select">
+                        <option value="select">Select...</option>
+                    </select>
+                </div>
+                <div class="nav-right">
+                    <button hidden id="sign-in" class="mdl-button mdl-js-button mdl-js-ripple-effect mdl-color-text--white">
+                      <i class="material-icons">account_circle</i>Sign-In
+                    </button>
+
+                    <button hidden id="sign-out" class="mdl-button mdl-js-button mdl-js-ripple-effect mdl-color-text--white">
+                        <div id="user-pic"></div>
+                        <div id="user-name"></div>
+                        <i id="sign-out-button" class="material-icons">exit_to_app</i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+<!---->
+
+    
+<!--    App    -->
+    <div id="app">
+        <div class="container-fluid box">
+            <div class="row">
+                <div class="col-md-12">
+                    <label>Item Lookup
+                    <i class="material-icons">search</i>
+                    </label>
+                    <input class="search" type="text" autocomplete="on">
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="snackbar" class="mdl-js-snackbar mdl-snackbar">
+        <div class="mdl-snackbar__text"></div>
+        <button class="mdl-snackbar__action" type="button"></button>
+  </div>
+<!---->
+</body>
+
+
+<!--Firebase Init-->
+<script src="https://www.gstatic.com/firebasejs/3.2.0/firebase.js"></script>
+<script>
+  // Initialize Firebase
+    var config = {
+    apiKey: "AIzaSyBk8G151jDdEhyW6ojRxufPZ3eBscmoeuk",
+    authDomain: "scoutnet-d920d.firebaseapp.com",
+    databaseURL: "https://scoutnet-d920d.firebaseio.com",
+    storageBucket: "scoutnet-d920d.appspot.com",
+    };
+    firebase.initializeApp(config);
+</script>
+<!---->
+
+<!-- jQuery -->
+<script src="./js/jquery.js"></script>
+<!---->
+
+<!-- Bootstrap Core JavaScript -->
+<script src="./js/bootstrap.min.js"></script>
+<!---->
+   
+<!--Toastr-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+<!--Toastr-->
+    
+<!--Custom JS-->
+<script src="./main.js" ></script>
+
+<!---->
+    
+</html>
