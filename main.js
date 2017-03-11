@@ -40,11 +40,15 @@ function TeamStock() {
     this.userPic = document.getElementById('user-pic');
     this.userName = document.getElementById('user-name');
     
+    this.addButton = document.getElementById('add');
+    
     // Load Data Template:
         
     //Wire up buttons:
     this.signOutButton.addEventListener('click', this.signOut.bind(this));
     this.signInButton.addEventListener('click', this.signIn.bind(this));
+//TODO: ADD BUTTON WIRING
+//    this.addButton.addEventListener('click', null);
     
     this.initFirebase();
     

@@ -40,6 +40,14 @@
         border-radius: 5px;
     }
 
+    #add {
+        -webkit-transform: translateZ(0);
+        position: fixed;
+        right: 30px;
+        bottom: 30px;
+        background-color: #303030;
+    }
+
     
 
 /* Nav */
