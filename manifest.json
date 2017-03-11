@@ -1,7 +1,7 @@
 {
   "name": "TeamStock",
   "short_name": "TeamStock",
-  "start_url": "/index.html",
+  "start_url": "/team-stock/index.html",
   "display": "standalone",
   "orientation": "portrait"
 }
