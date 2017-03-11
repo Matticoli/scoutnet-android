@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "name": "TeamStock",
-  "launch_path": "/index.html",
+  "launch_path": "/team-stock/index.html",
   "description": "Collaborative inventory management",
   "developer": {
     "name": "Mikel Matticoli",
