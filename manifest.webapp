@@ -2,7 +2,7 @@
   "version": "1.0.0",
   "name": "TeamStock",
   "launch_path": "/index.html",
-  "description": "Scouting database for alliance-based robotics competitions",
+  "description": "Collaborative inventory management",
   "developer": {
     "name": "Mikel Matticoli",
     "url": "https://matticoli.github.io"
@@ -15,8 +15,8 @@
   },
   "locales": {
     "en": {
-      "name": "ScoutNet",
-      "description": "Scouting database for alliance-based robotics competitions"
+      "name": "TeamStock",
+      "description": "Collaborative inventory management"
     }
   }
 }

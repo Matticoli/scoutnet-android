@@ -32,12 +32,13 @@ function TeamStock() {
 
     // Shortcuts to DOM Elements:
     this.body = document.getElementById('body');
-    this.appContainer = document.getElementById('app');
+    this.appContainer = document.getElementById('app-container');
+    this.drawerContainer = document.getElementById('drawer-container');
     this.nav = document.getElementById('nav');
-    this.userPic = document.getElementById('user-pic');
-    this.userName = document.getElementById('user-name');
     this.signInButton = document.getElementById('sign-in');
     this.signOutButton = document.getElementById('sign-out');
+    this.userPic = document.getElementById('user-pic');
+    this.userName = document.getElementById('user-name');
     
     // Load Data Template:
         
@@ -46,7 +47,38 @@ function TeamStock() {
     this.signInButton.addEventListener('click', this.signIn.bind(this));
     
     this.initFirebase();
+    
+    setTimeout(function() {
+        if(!this.checkSignedIn()) {
+           this.signIn.bind(this)();
+        }
+    }.bind(this),1000);
 }
+
+/* HTML Templates */
+TeamStock.listCategoryTemplate =' \
+                  <li class="mdl-list__item"> \
+                    <a href="#" class="mdl-list__item-primary-content mdl-color-text--white"> \
+                        <i class="material-icons  mdl-list__item-avatar">label_outline</i> \
+                        $NAME \
+                    </a> \
+                  </li> \
+';
+
+TeamStock.listItemTemplate =' \
+                  <li class="mdl-list__item"> \
+                    <a href="#" class="mdl-list__item-secondary-content mdl-color-text--white"> \
+                        $NAME \
+                    </a> \
+                  </li> \
+';
+
+TeamStock.drawerItemTemplate =' \
+                    <a class="mdl-navigation__link" href="">$NAME</a> \
+';
+
+
+/*================*/
 
 TeamStock.prototype.checkSetup = function () {
     if (!window.firebase || !(firebase.app instanceof Function) || !window.config) {
@@ -102,7 +134,7 @@ TeamStock.prototype.saveUser = function(user) {
     
     // If database isn't initialized, wait until it is
     if (!this.database) {
-        TeamStock.prototype.saveUser(user);
+        TeamStock.prototype.saveUser.bind(this)(user);
         return;
     }
     
@@ -168,6 +200,7 @@ TeamStock.prototype.onAuthStateChanged = function (user) {
     if (user) { // User is signed in!
         // Get profile pic and user's name from the Firebase user object.
         console.log(user);
+        this.saveUser.bind(this)(user);
         var profilePicUrl = user.photoURL;
         var userName = user.displayName;
 

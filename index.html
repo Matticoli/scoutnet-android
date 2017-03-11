@@ -39,58 +39,75 @@
     <!-- Bootstrap Core stylesheets -->
     <link rel="stylesheet" type="text/css" href="./css/bootstrap.min.css">
     
+    
     <!--  Custom Stylesheets  -->
     <link rel="stylesheet" type="text/css" href="./css/main.css">
     
 <!--    TODO: Favicon and logo-->
 </head>
 
-<body id="body" data-spy="scroll" data-target=".navbar-fixed-top">
+<body id="body">
 <!--    Navbar   -->
-    <nav class="navbar navbar-custom navbar-fixed-top" role="navigation">
-        <div id="user-container" class="container">
-            <div class="navbar-header">
-                <div class="nav-left">
-                    <select class="select">
-                        <option value="select">Select...</option>
-                    </select>
-                </div>
-                <div class="nav-right">
-                    <button hidden id="sign-in" class="mdl-button mdl-js-button mdl-js-ripple-effect mdl-color-text--white">
-                      <i class="material-icons">account_circle</i>Sign-In
-                    </button>
-
-                    <button hidden id="sign-out" class="mdl-button mdl-js-button mdl-js-ripple-effect mdl-color-text--white">
-                        <div id="user-pic"></div>
-                        <div id="user-name"></div>
-                        <i id="sign-out-button" class="material-icons">exit_to_app</i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </nav>
-<!---->
-
-    
-<!--    App    -->
-    <div id="app">
-        <div class="container-fluid box">
-            <div class="row">
-                <div class="col-md-12">
-                    <label>Item Lookup
-                    <i class="material-icons">search</i>
+    <div id="drawer-container" class="mdl-layout mdl-js-layout mdl-layout--fixed-drawer mdl-layout--fixed-header">
+        <header class="mdl-layout__header">
+            <div class="mdl-layout__header-row">
+                <i class="material-icons">work</i>
+                <h4>TEAM<label>STOCK</label></h4>                        
+                <div class="mdl-layout-spacer"></div>
+                <label>Filter:</label>
+                <div class="mdl-textfield mdl-js-textfield mdl-textfield--expandable mdl-textfield--floating-label mdl-textfield--align-right">
+                    <label class="mdl-button mdl-js-button mdl-button--icon" for="fixed-header-drawer-exp">
+                        <i class="material-icons">search</i>
                     </label>
-                    <input class="search" type="text" autocomplete="on">
+                    <div class="mdl-textfield__expandable-holder">
+                        <input class="mdl-textfield__input" type="text" name="sample" id="fixed-header-drawer-exp">
+                    </div>
                 </div>
             </div>
+        </header>
+        <div id="drawer-container" class="mdl-layout__drawer">
+            <nav class="navbar navbar-custom" role="navigation">
+                <div id="user-container" class="container">
+                    <div class="navbar-header">
+                        <div class="nav-obj">
+                            <button hidden id="sign-in" class="mdl-button mdl-js-button mdl-js-ripple-effect mdl-color-text--white">
+                                <i class="material-icons">account_circle</i>Sign-In
+                            </button>
+
+                            <button hidden id="sign-out" class="mdl-button mdl-js-button mdl-js-ripple-effect mdl-color-text--white">
+                                <div id="user-pic"></div>Sign Out
+                                <div hidden id="user-name" class></div>
+                                <label class="">Sign Out</label>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+            <span class="mdl-layout-title">Teams</span>
+            <nav id="nav" class="mdl-navigation">
+                <a class="mdl-navigation__link" href="">You must sign in to view teams</a>
+            </nav>
         </div>
+        <main class="mdl-layout__content">
+            <div class="page-content">
+    <!--  End Navbar -->
+
+    <!--    App    -->
+                <div id="app-container">
+                    <div class="container-fluid box">
+                        <div class="row">
+                            <div class="col-md-offset-1 col-md-10">
+                            <ul class="demo-list-item mdl-list ">
+                                <!-- Item List -->
+                            </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    <!-- End App -->
+            </div>
+        </main>
     </div>
-    
-    <div id="snackbar" class="mdl-js-snackbar mdl-snackbar">
-        <div class="mdl-snackbar__text"></div>
-        <button class="mdl-snackbar__action" type="button"></button>
-  </div>
-<!---->
 </body>
 
 
@@ -119,11 +136,10 @@
 <!--Toastr-->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
-<!--Toastr-->
+<!---->
     
 <!--Custom JS-->
 <script src="./main.js" ></script>
-
 <!---->
     
 </html>
