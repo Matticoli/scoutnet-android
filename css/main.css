@@ -4,8 +4,11 @@
       display: block;
       color: white;
       background-color: #303030;
-/*      margin-top: 6em;*/
       overflow-x: hidden;
+    }
+
+    h1, h2, h3, h4, h5 {
+        color: mintcream;
     }
 
     .material-icons {
@@ -25,6 +28,10 @@
       background-color: #303030;
     color: white;
     }
+
+.mdl-list__item-secondary-content i, h5{
+    display: inline-block;
+}
 
 /* App Content */
     #search {
