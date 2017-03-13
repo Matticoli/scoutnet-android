@@ -28,35 +28,39 @@ function TeamStock() {
     this.checkSetup();
     
     // Database Prefix:
-    this.prefix = "release/";
+    this.prefix = extractDomain(window.location.href)+'/';
+    console.log("Env: "+this.prefix);
 
     // Shortcuts to DOM Elements:
     this.body = document.getElementById('body');
+        // Containers
     this.appContainer = document.getElementById('app-container');
     this.drawerContainer = document.getElementById('drawer-container');
-    this.nav = document.getElementById('nav');
+    this.teamsContainer = document.getElementById('sidebar-nav');
+    this.itemList = document.getElementById('item-list');
+        // Auth
     this.signInButton = document.getElementById('sign-in');
     this.signOutButton = document.getElementById('sign-out');
     this.userPic = document.getElementById('user-pic');
     this.userName = document.getElementById('user-name');
-    
+        // Control
+            // Sidebar
+    this.editTeamsButton = document.getElementById('edit-teams');
+    this.teamStorageButton = document.getElementById('team-storage');
+            // App
+    this.searchBar = document.getElementById('fixed-header-drawer-exp');
     this.addButton = document.getElementById('add');
-    
-    // Load Data Template:
-        
+    this.addCategoryButton = document.getElementById('add-category');
+    this.addItemButton = document.getElementById('add-item');    this.createRequest = document.getElementById('create-request');
+            
     //Wire up buttons:
     this.signOutButton.addEventListener('click', this.signOut.bind(this));
     this.signInButton.addEventListener('click', this.signIn.bind(this));
-//TODO: ADD BUTTON WIRING
-//    this.addButton.addEventListener('click', null);
+//TODO: ADD MENU WIRING
+    this.addItemButton.addEventListener('click', this.addItem.bind(this));
+    this.addCategoryButton.addEventListener('click', this.addCategory.bind(this));
     
     this.initFirebase();
-    
-    setTimeout(function() {
-        if(!this.checkSignedIn()) {
-           this.signIn.bind(this)();
-        }
-    }.bind(this),1000);
 }
 
 /* HTML Templates */
@@ -80,9 +84,9 @@ TeamStock.listItemTemplate =' \
 TeamStock.drawerItemTemplate =' \
                     <a class="mdl-navigation__link" href="">$NAME</a> \
 ';
-
-
 /*================*/
+
+/* Firebase/Init Functions */
 
 TeamStock.prototype.checkSetup = function () {
     if (!window.firebase || !(firebase.app instanceof Function) || !window.config) {
@@ -107,6 +111,82 @@ TeamStock.prototype.initFirebase = function () {
     
     // Initiates Firebase auth and listen to auth state changes.
     this.auth.onAuthStateChanged(this.onAuthStateChanged.bind(this));
+}
+
+// ========== UI Functions: ========== //
+TeamStock.prototype.setControlState = function(isEnabled) {
+    this.addButton.disabled = !isEnabled;
+    this.searchBar.disabled = !isEnabled;
+}
+
+TeamStock.prototype.addItem = function() {
+    this.dbSaveItem.bind(this)(
+        {
+            "name": window.prompt("Enter item name:"),
+            "description": window.prompt("Enter item description:"),
+            "distribution": {"storage": window.prompt("Enter qty in storage:")}
+        });
+}
+
+TeamStock.prototype.addCategory = function() {
+    this.dbSaveCategory.bind(this)(
+        {
+            "name": window.prompt("Enter category name:"),
+            "description": window.prompt("Enter category description:")
+        });
+}
+
+// ========== DB Functions: ========== //
+TeamStock.prototype.dbLoadItems = function() {
+    // TODO: Implement this and add corresponding UI function
+}
+
+TeamStock.prototype.dbSaveItem = function(item) {
+    var itemRef = this.database.ref(this.prefix + 'items/'+item.name);
+    
+    // Check if item exists
+    itemRef.once('value').then(function (snapshot) {
+        if(snapshot.val() != null) {
+            // Item already exists
+            toastr.error("That item already exists!", "Uh oh..");
+        } else {
+            // Item does not exist, add item
+            console.log("Adding new item to database...");
+            itemRef.set({ // Note: New user can not write to "active" property, so it must be omitted until an admin activates the user.
+                name: item.name,
+                description: item.description,
+                distribution: item.distribution
+            }).then(function () {
+                console.log("New item added successfully!");
+                toastr.success("New item added successfully!");
+            }.bind(this)).catch(function (error) {
+                console.error('Error writing new item to Firebase Database', error);
+                toastr.error("Error saving new item to database.", "Uh oh...");
+            });
+        }
+    }.bind(this));
+}
+
+TeamStock.prototype.dbSaveCategory = function(category) {
+    var catRef = this.database.ref(this.prefix + 'categories/'+category.name);
+    
+    // Check if item exists
+    catRef.once('value').then(function (snapshot) {
+        if(snapshot.val() != null) {
+            // Item already exists
+            toastr.error("That category already exists!", "Uh oh..");
+        } else {
+            // Item does not exist, add item
+            console.log("Adding new item to database...");
+            catRef.set(category.description).then(function () {
+                console.log("New category added successfully!");
+                toastr.success("New category added successfully!");
+            }.bind(this)).catch(function (error) {
+                console.error('Error writing new category to Firebase Database', error);
+                toastr.error("Error saving new category to database.", "Uh oh...");
+            });
+        }
+    }.bind(this));
 }
 
 // ========== Auth Functions: ========== //
@@ -134,7 +214,7 @@ TeamStock.prototype.checkSignedIn = function () {
 };
 
 // Save new user data to database
-TeamStock.prototype.saveUser = function(user) {
+TeamStock.prototype.saveUserIfNew = function(user) {
     
     // If database isn't initialized, wait until it is
     if (!this.database) {
@@ -150,16 +230,14 @@ TeamStock.prototype.saveUser = function(user) {
         if(snapshot.val() != null) {
             // User already exists
             toastr.success("Welcome back, " + user.displayName + "!")
-            console.log(snapshot.val());
             
-            //Disable admin dropdown if user is not admin
+            // Add admin buttons if user is admin
             this.database.ref(this.prefix + 'admins/' + user.uid).once('value').then( function (snapshot) {
-                if(!snapshot.val()) {
-                    this.adminDropdown.style = "pointer-events: none;";
-                }
+                // TODO: Add admin buttons to sidebar
             }.bind(this));
             
-            // Check if user has access to database:
+            // Check if user has permission to access database
+            // If not, show access denied toast
             if (!(snapshot.val().active)) {
                 //toastr signed out setup
                 toastr.options = {
@@ -182,8 +260,9 @@ TeamStock.prototype.saveUser = function(user) {
                 toastr.error("You do not have permission to access the database. Contact the head scout if you believe this is an error.", "Uh oh..");
             }
         } else {
+            // User does not exist, add user
             console.log("Adding new user to database...");
-            userRef.set({ //Note: New user can not write to "active" property, so it must be omitted until an admin activates the user.
+            userRef.set({ // Note: New user can not write to "active" property, so it must be omitted until an admin activates the user.
                 uid: user.uid,
                 name: user.displayName,
                 email: user.email
@@ -195,16 +274,14 @@ TeamStock.prototype.saveUser = function(user) {
                 toastr.error("Error saving new user to database. You may need to sign out and sign back in.", "Uh oh...");
             });
         }
-        
     }.bind(this));
 }
 
-// Triggers when the auth state change for instance when the user signs-in or signs-out.
+// Triggers when the auth state change, for instance when the user signs in or out.
 TeamStock.prototype.onAuthStateChanged = function (user) {
     if (user) { // User is signed in!
         // Get profile pic and user's name from the Firebase user object.
-        console.log(user);
-        this.saveUser.bind(this)(user);
+        this.saveUserIfNew.bind(this)(user);
         var profilePicUrl = user.photoURL;
         var userName = user.displayName;
 
@@ -219,6 +296,8 @@ TeamStock.prototype.onAuthStateChanged = function (user) {
 
         // Hide sign-in button.
         this.signInButton.setAttribute('hidden', 'true');
+        this.setControlState(true);
+
         
             //toastr signed in setup
             toastr.options = {
@@ -247,6 +326,7 @@ TeamStock.prototype.onAuthStateChanged = function (user) {
 
         // Show sign-in button.
         this.signInButton.removeAttribute('hidden');
+        this.setControlState(false);
 
         //toastr signed out setup
         toastr.options = {
@@ -277,4 +357,27 @@ TeamStock.prototype.onAuthStateChanged = function (user) {
 window.onload = function () {
     window.scoutNet = new TeamStock();
 };
+
+// Utility
+
+/*
+ * Gets root domain from web url
+ * Source:
+  * http://stackoverflow.com/questions/1034621/get-current-url-in-web-browser 
+ */
+function extractDomain(url) {
+    var domain;
+    //find & remove protocol (http, ftp, etc.) and get domain
+    if (url.indexOf("://") > -1) {
+        domain = url.split('/')[2];
+    }
+    else {
+        domain = url.split('/')[0];
+    }
+
+    //find & remove port number
+    domain = domain.split(':')[0];
+
+    return domain;
+}
 

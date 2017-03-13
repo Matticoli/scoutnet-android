@@ -34,19 +34,6 @@
 }
 
 /* App Content */
-    #search {
-        color: black;
-        font-weight: 500;
-        display: box;
-        width: 80%;
-        height: 30px;
-        padding: 5px;
-        margin-left: auto;
-        margin-right: auto;
-        box-shadow: 2px 2px grey;
-        border-radius: 5px;
-    }
-
     #add {
         -webkit-transform: translateZ(0);
         position: fixed;

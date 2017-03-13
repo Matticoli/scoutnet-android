@@ -88,7 +88,15 @@
                 </div>
             </nav>
             <span class="mdl-layout-title">Teams</span>
-            <nav id="nav" class="mdl-navigation">
+            <nav id="sidebar-nav" class="mdl-navigation">
+                <a id="edit-teams" class="mdl-navigation__link" href="">
+                    <i class="material-icons">mode_edit</i>
+                    Manage Teams</a>
+                <hr>
+                <a id="team-storage" class="mdl-navigation__link" href="">
+                    <i class="material-icons">storage</i>
+                    Storage
+                </a>
                 <a class="mdl-navigation__link" href="">You must sign in to view teams</a>
             </nav>
         </div>
@@ -101,16 +109,22 @@
                     <div class="container-fluid box">
                         <div class="row">
                             <div class="col-md-offset-1 col-md-10">
-                                <button id="add" class="mdl-button mdl-js-button mdl-button--fab mdl-js-ripple-effect mdl-button--colored ">
+                                <button disabled id="add" class="mdl-button mdl-js-button mdl-button--fab mdl-js-ripple-effect mdl-button--colored ">
                                     <i class="material-icons">add</i>
                                 </button>
                                 <ul class="mdl-menu mdl-menu--top-right mdl-js-menu mdl-js-ripple-effect" for="add">
-                                  <li class="mdl-menu__item ">Add Category</li>
-                                  <li class="mdl-menu__item mdl-menu__item--full-bleed-divider">Add Item</li>
-                                  <li disabled class="mdl-menu__item mdl-menu__item--full-bleed-divider">Request Part</li>
+                                  <li id="add-category" class="mdl-menu__item ">Add Category</li>
+                                  <li id="add-item" class="mdl-menu__item mdl-menu__item--full-bleed-divider">Add Item</li>
+                                  <li id="create-request" class="mdl-menu__item mdl-menu__item--full-bleed-divider">Request Part</li>
                                 </ul>
-                                <ul class="demo-list-item mdl-list ">
+                                <ul id="item-list" class="demo-list-item mdl-list ">
                                     <!-- Item List -->
+                                    <span>
+                                        <h4>
+                                            Selected Team: 
+                                            <label id="selected-team">Storage</label>
+                                        </h4>
+                                    </span>
                                     <ul class="demo-list-control mdl-list">
                                         <li class="mdl-list__item">
                                             <span class="mdl-list__item-primary-action">
@@ -125,7 +139,18 @@
                                                 <span class="mdl-list__item-secondary-content">
                                                     <h5>
                                                         <i class="material-icons mdl-badge mdl-badge--overlap" data-badge="1">send</i>
-                                                        Allen Key 3/32
+                                                        Allen Key 5/64
+                                                        <i hidden class="material-icons">check</i>
+                                                    </h5>
+                                                </span>
+                                            </span>
+                                        </li>
+                                        <li class="mdl-list__item">
+                                            <span class="mdl-list__item-secondary-action">
+                                                <span class="mdl-list__item-secondary-content">
+                                                    <h5>
+                                                        <i class="material-icons mdl-badge mdl-badge--overlap" data-badge="1">send</i>
+                                                        Allen Key 5/64
                                                     </h5>
                                                 </span>
                                             </span>
@@ -144,16 +169,17 @@
 
 
 <!--Firebase Init-->
-<script src="https://www.gstatic.com/firebasejs/3.2.0/firebase.js"></script>
+<script src="https://www.gstatic.com/firebasejs/3.7.1/firebase.js"></script>
 <script>
   // Initialize Firebase
-    var config = {
-    apiKey: "AIzaSyBk8G151jDdEhyW6ojRxufPZ3eBscmoeuk",
-    authDomain: "scoutnet-d920d.firebaseapp.com",
-    databaseURL: "https://scoutnet-d920d.firebaseio.com",
-    storageBucket: "scoutnet-d920d.appspot.com",
-    };
-    firebase.initializeApp(config);
+  var config = {
+    apiKey: "AIzaSyDngY1_F-GtlyunvSOUKK4XJ3SE-5lSDnk",
+    authDomain: "team-stock.firebaseapp.com",
+    databaseURL: "https://team-stock.firebaseio.com",
+    storageBucket: "team-stock.appspot.com",
+    messagingSenderId: "407480016236"
+  };
+  firebase.initializeApp(config);
 </script>
 <!---->
 
