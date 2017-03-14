@@ -51,7 +51,8 @@ function TeamStock() {
     this.searchBar = document.getElementById('fixed-header-drawer-exp');
     this.addButton = document.getElementById('add');
     this.addCategoryButton = document.getElementById('add-category');
-    this.addItemButton = document.getElementById('add-item');    this.createRequest = document.getElementById('create-request');
+    this.addItemButton = document.getElementById('add-item');    
+    this.createRequestButton = document.getElementById('create-request');
             
     //Wire up buttons:
     this.signOutButton.addEventListener('click', this.signOut.bind(this));
@@ -59,29 +60,38 @@ function TeamStock() {
 //TODO: ADD MENU WIRING
     this.addItemButton.addEventListener('click', this.addItem.bind(this));
     this.addCategoryButton.addEventListener('click', this.addCategory.bind(this));
+    this.createRequestButton.addEventListener('click', this.dbLoadItems.bind(this));
     
     this.initFirebase();
 }
 
 /* HTML Templates */
-TeamStock.listCategoryTemplate =' \
-                  <li class="mdl-list__item"> \
-                    <a href="#" class="mdl-list__item-primary-content mdl-color-text--white"> \
-                        <i class="material-icons  mdl-list__item-avatar">label_outline</i> \
-                        $NAME \
-                    </a> \
-                  </li> \
+TeamStock.prototype.listCategoryTemplate =' \
+        <li class="mdl-list__item"> \
+            <span class="mdl-list__item-primary-action"> \
+                <span class="mdl-list__item-primary-content"> \
+                    <i class="material-icons  mdl-list__item-avatar">build</i> \
+                    <h4>$NAME</h4> \
+                </span> \
+            </span> \
+        </li> \
 ';
 
-TeamStock.listItemTemplate =' \
-                  <li class="mdl-list__item"> \
-                    <a href="#" class="mdl-list__item-secondary-content mdl-color-text--white"> \
+TeamStock.prototype.listItemTemplate =' \
+        <li class="mdl-list__item"> \
+            <span class="mdl-list__item-secondary-action"> \
+                <span class="mdl-list__item-secondary-content"> \
+                    <h5> \
+                        <i class="material-icons mdl-badge mdl-badge--overlap" data-badge="$NUM">send</i> \
                         $NAME \
-                    </a> \
-                  </li> \
+                        <i hidden class="material-icons">check</i> \
+                    </h5> \
+                </span> \
+            </span> \
+        </li> \
 ';
 
-TeamStock.drawerItemTemplate =' \
+TeamStock.prototype.drawerItemTemplate =' \
                     <a class="mdl-navigation__link" href="">$NAME</a> \
 ';
 /*================*/
@@ -119,30 +129,93 @@ TeamStock.prototype.setControlState = function(isEnabled) {
     this.searchBar.disabled = !isEnabled;
 }
 
+TeamStock.prototype.clearList = function() {
+    this.itemList.innerHTML = "";
+}
+
+TeamStock.prototype.appendListItem = function(item) {
+    this.itemList.innerHTML += this.listItemTemplate
+        .replace("$NAME", item.name)
+        .replace("$NUM", item.distribution.storage);
+}
+
+TeamStock.prototype.appendListCategory = function(cat) {
+    console.log(cat);
+    this.itemList.innerHTML += this.listCategoryTemplate
+        .replace("$NAME", cat);
+}
+
 TeamStock.prototype.addItem = function() {
-    this.dbSaveItem.bind(this)(
+    
+    var category = window.prompt("Enter item category:").toUpperCase();
+    
+    this.dbCheckCategory.bind(this)(category, function() {
+        // Category exists
+        this.dbSaveItem.bind(this)(
         {
             "name": window.prompt("Enter item name:"),
             "description": window.prompt("Enter item description:"),
+            "category": category,
             "distribution": {"storage": window.prompt("Enter qty in storage:")}
         });
+    }.bind(this), function() {
+        // Category DNE
+        toastr.error('No such category '+category+'! Please specify an existing category or try a different one.');
+    });
 }
 
 TeamStock.prototype.addCategory = function() {
     this.dbSaveCategory.bind(this)(
         {
-            "name": window.prompt("Enter category name:"),
+            "name": window.prompt("Enter category name:").toUpperCase(),
             "description": window.prompt("Enter category description:")
         });
 }
 
 // ========== DB Functions: ========== //
 TeamStock.prototype.dbLoadItems = function() {
-    // TODO: Implement this and add corresponding UI function
+    var itemRef = this.database.ref(this.prefix + 'items');
+    
+    var cats = [];
+    
+    
+    // Load Items List:
+    itemRef.on('value', function (snapshot) {
+        this.clearList();
+        
+        Object.keys(snapshot.val()).forEach(function(category) {
+            cats.push(category);
+            this.appendListCategory.bind(this)(category);
+            Object.keys(snapshot.val()[category]).forEach(function(item) {
+                this.appendListItem.bind(this)(snapshot.val()[category][item]);
+            }.bind(this));
+        }.bind(this));        
+
+        // Load empty categories:
+        itemRef = this.database.ref(this.prefix + 'categories');
+        itemRef.once('value').then(function (snapshot) {
+            Object.keys(snapshot.val()).forEach(function(category) {
+                if(cats.indexOf(category) < 0) {
+                    this.appendListCategory.bind(this)(category);
+                }
+            }.bind(this));
+       }.bind(this));
+
+   }.bind(this));
+}
+
+TeamStock.prototype.dbCheckCategory = function(category, existsCallback, nexistsCallback) {
+    this.database.ref(this.prefix + 'categories/'+category).once('value').then(function (snapshot) {
+        if(snapshot.val()) {
+            existsCallback();
+        } else {
+            nexistsCallback();
+        }
+    });
 }
 
 TeamStock.prototype.dbSaveItem = function(item) {
-    var itemRef = this.database.ref(this.prefix + 'items/'+item.name);
+    var itemRef = this.database.ref(this.prefix + 'items/'+item.category.toUpperCase()+'/'+item.name);
     
     // Check if item exists
     itemRef.once('value').then(function (snapshot) {
@@ -155,6 +228,7 @@ TeamStock.prototype.dbSaveItem = function(item) {
             itemRef.set({ // Note: New user can not write to "active" property, so it must be omitted until an admin activates the user.
                 name: item.name,
                 description: item.description,
+                category: item.category,
                 distribution: item.distribution
             }).then(function () {
                 console.log("New item added successfully!");
@@ -257,7 +331,7 @@ TeamStock.prototype.saveUserIfNew = function(user) {
                   "showMethod": "fadeIn",
                   "hideMethod": "fadeOut"
                 }
-                toastr.error("You do not have permission to access the database. Contact the head scout if you believe this is an error.", "Uh oh..");
+                toastr.error("You do not have permission to access the database.", "Uh oh..");
             }
         } else {
             // User does not exist, add user
@@ -355,7 +429,7 @@ TeamStock.prototype.onAuthStateChanged = function (user) {
 
 // Startup
 window.onload = function () {
-    window.scoutNet = new TeamStock();
+    window.teamStock = new TeamStock();
 };
 
 // Utility
