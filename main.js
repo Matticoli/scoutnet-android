@@ -49,6 +49,10 @@ function TeamStock() {
     this.teamStorageButton = document.getElementById('team-storage');
             // App
     this.searchBar = document.getElementById('fixed-header-drawer-exp');
+    this.itemModal = document.getElementById('item-modal');
+    this.itemModalContent = document.getElementById('item-modal-container');
+    this.itemModalCancelButton = document.getElementById('item-modal-cancel');
+    this.itemModalDoneButton = document.getElementById('item-modal-done');
     this.addButton = document.getElementById('add');
     this.addCategoryButton = document.getElementById('add-category');
     this.addItemButton = document.getElementById('add-item');    
@@ -60,14 +64,16 @@ function TeamStock() {
 //TODO: ADD MENU WIRING
     this.addItemButton.addEventListener('click', this.addItem.bind(this));
     this.addCategoryButton.addEventListener('click', this.addCategory.bind(this));
-    this.createRequestButton.addEventListener('click', this.dbLoadItems.bind(this));
+    this.createRequestButton.addEventListener('click', null);
     
-    this.initFirebase();
+    this.itemModalCancelButton.addEventListener('click', this.hideItemModal.bind(this));
+    
+    this.initFirebase();   
 }
 
 /* HTML Templates */
 TeamStock.prototype.listCategoryTemplate =' \
-        <li class="mdl-list__item"> \
+        <li id="lic-$NAME" class="mdl-list__item"> \
             <span class="mdl-list__item-primary-action"> \
                 <span class="mdl-list__item-primary-content"> \
                     <i class="material-icons  mdl-list__item-avatar">build</i> \
@@ -78,7 +84,7 @@ TeamStock.prototype.listCategoryTemplate =' \
 ';
 
 TeamStock.prototype.listItemTemplate =' \
-        <li class="mdl-list__item"> \
+        <li id="lii-$NAME" class="mdl-list__item">\
             <span class="mdl-list__item-secondary-action"> \
                 <span class="mdl-list__item-secondary-content"> \
                     <h5> \
@@ -135,14 +141,22 @@ TeamStock.prototype.clearList = function() {
 
 TeamStock.prototype.appendListItem = function(item) {
     this.itemList.innerHTML += this.listItemTemplate
-        .replace("$NAME", item.name)
-        .replace("$NUM", item.distribution.storage);
+        .replace(/\$NAME/g, item.name)
+        .replace(/\$NUM/g, item.distribution.storage);
+    // Delay button wiring to ensure ample time for html content to be changed.
+    setTimeout(function() {
+        var listItem = document.getElementById('lii-'+item.name);
+        
+        listItem.addEventListener('click', function(data) {
+            this.showItemModal.bind(this)(item);
+        }.bind(this));
+    }.bind(this), 500);
 }
 
 TeamStock.prototype.appendListCategory = function(cat) {
     console.log(cat);
     this.itemList.innerHTML += this.listCategoryTemplate
-        .replace("$NAME", cat);
+        .replace(/\$NAME/g, cat);
 }
 
 TeamStock.prototype.addItem = function() {
@@ -172,6 +186,20 @@ TeamStock.prototype.addCategory = function() {
         });
 }
 
+//MODALS
+TeamStock.prototype.showItemModal = function(item) {
+    this.itemModalContent.innerHTML = "<h1>"+item.name+"</h1>";
+    $(this.itemModal).fadeIn();
+    this.setControlState(false);
+//    this.itemModal.removeAttribute('hidden');
+}
+
+TeamStock.prototype.hideItemModal = function() {
+    this.itemModalContent.innerHTML = "";
+    $(this.itemModal).fadeOut();
+    this.setControlState(true);
+
+}
 // ========== DB Functions: ========== //
 TeamStock.prototype.dbLoadItems = function() {
     var itemRef = this.database.ref(this.prefix + 'items');
@@ -392,7 +420,11 @@ TeamStock.prototype.onAuthStateChanged = function (user) {
               "hideMethod": "fadeOut"
             }
         toastr.clear();
+        
+        this.dbLoadItems.bind(this)();
+        
     } else { // User is signed out!
+        this.clearList.bind(this)();
         // Hide user's profile and sign-out button.
         this.userName.setAttribute('hidden', 'true');
         this.userPic.setAttribute('hidden', 'true');

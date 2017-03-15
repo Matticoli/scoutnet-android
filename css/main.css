@@ -42,7 +42,36 @@
         background-color: #303030;
     }
 
-    
+    .modal {
+        color: darkslategrey;
+        position: fixed;
+        display: none;
+        background-color: #828282;
+        height: 50%;
+        width: 80%;
+        margin: auto;
+        border-radius: 10px;
+        padding: 20px;
+    }
+
+    .modal input, button{
+        border: none;
+        border-radius: 12px;
+        padding: 4px;
+    }
+
+    .modal .button-container {
+        position: absolute;
+        display: fixed;
+        bottom: 10px;
+        right: 10px;
+        padding: 10px;
+        word-spacing: 10px;
+    }
+
+.modal .material-icons {
+    color: black;
+}
 
 /* Nav */
     .navbar-header {
