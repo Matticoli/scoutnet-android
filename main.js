@@ -29,7 +29,7 @@ function TeamStock() {
     
     // Database Prefix:
     this.prefix = extractDomain(window.location.href)+'/';
-    console.log("Env: "+this.prefix);
+    console.log("Env: "+"this.prefix");
 
     // Shortcuts to DOM Elements:
     this.body = document.getElementById('body');
@@ -45,12 +45,14 @@ function TeamStock() {
     this.userName = document.getElementById('user-name');
         // Control
             // Sidebar
+    this.sidebarSigninPrompt = document.getElementById('sidebar-sign-in-prompt');
     this.editTeamsButton = document.getElementById('edit-teams');
     this.teamStorageButton = document.getElementById('team-storage');
             // App
     this.searchBar = document.getElementById('fixed-header-drawer-exp');
     this.itemModal = document.getElementById('item-modal');
     this.itemModalContent = document.getElementById('item-modal-container');
+    this.itemModalChanges = document.getElementById('item-modal-changes');
     this.itemModalCancelButton = document.getElementById('item-modal-cancel');
     this.itemModalDoneButton = document.getElementById('item-modal-done');
     this.addButton = document.getElementById('add');
@@ -64,7 +66,20 @@ function TeamStock() {
 //TODO: ADD MENU WIRING
     this.addItemButton.addEventListener('click', this.addItem.bind(this));
     this.addCategoryButton.addEventListener('click', this.addCategory.bind(this));
-    this.createRequestButton.addEventListener('click', null);
+    this.createRequestButton.addEventListener('click', function() {
+        var url = "webhookurl";
+        var params = "payload="+JSON.stringify({
+            "text":"This is a test message from IE"
+        });
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", url, true);
+
+        //Send the proper header information along with the request
+        xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+
+        xhr.send(params);
+    });
+    
     
     this.itemModalCancelButton.addEventListener('click', this.hideItemModal.bind(this));
     
@@ -84,13 +99,32 @@ TeamStock.prototype.listCategoryTemplate =' \
 ';
 
 TeamStock.prototype.listItemTemplate =' \
-        <li id="lii-$NAME" class="mdl-list__item">\
-            <span class="mdl-list__item-secondary-action"> \
+        <li class="mdl-list__item">\
+            <span id="lii-$NAME" class="mdl-list__item-secondary-action"> \
                 <span class="mdl-list__item-secondary-content"> \
                     <h5> \
                         <i class="material-icons mdl-badge mdl-badge--overlap" data-badge="$NUM">send</i> \
                         $NAME \
                         <i hidden class="material-icons">check</i> \
+                    </h5> \
+                </span> \
+            </span> \
+        </li> \
+';
+
+TeamStock.prototype.modalTeamTemplate =' \
+        <li class="mdl-list__item">\
+            <span id="mli-$NAME" class="mdl-list__item-secondary-action"> \
+                <span class="mdl-list__item-secondary-content"> \
+                    <h5> \
+                        <i class="material-icons mdl-badge mdl-badge--overlap" data-badge="$NUM">business_center</i> \
+                        $NAME \
+                        <button hidden id="$NAME-plus"> \
+                            <i class="material-icons">exposure_plus_1</i> \
+                        </button> \
+                        <button hidden id="$NAME-minus"> \
+                            <i class="material-icons">exposure_neg_1</i> \
+                        </button> \
                     </h5> \
                 </span> \
             </span> \
@@ -147,7 +181,8 @@ TeamStock.prototype.appendListItem = function(item) {
     setTimeout(function() {
         var listItem = document.getElementById('lii-'+item.name);
         
-        listItem.addEventListener('click', function(data) {
+        listItem.addEventListener('click', function() {
+            console.log("Opening item modal");
             this.showItemModal.bind(this)(item);
         }.bind(this));
     }.bind(this), 500);
@@ -188,28 +223,89 @@ TeamStock.prototype.addCategory = function() {
 
 //MODALS
 TeamStock.prototype.showItemModal = function(item) {
-    this.itemModalContent.innerHTML = "<h1>"+item.name+"</h1>";
-    $(this.itemModal).fadeIn();
+    this.itemModalContent.innerHTML = "<h4>"+item.name+"</h4>";
+    this.itemModalChanges.innerHTML = "";
     this.setControlState(false);
-//    this.itemModal.removeAttribute('hidden');
+    $(this.itemModal).slideDown(200);
+
+    setTimeout(function() {
+        
+    Object.keys(item.distribution).forEach( function (team) {
+        console.log(team);
+        this.itemModalContent.innerHTML += this.modalTeamTemplate
+            .replace(/\$NAME/g, team)
+            .replace(/\$NUM/g,item.distribution[team]);
+        
+        var plusButton = document.getElementById(team+'-plus');
+        var minusButton = document.getElementById(team+'-minus');
+        var changes = {};
+        plusButton.removeAttribute('hidden');
+        minusButton.removeAttribute('hidden');
+        
+        this.itemModalDoneButton.addEventListener('click', function() {
+            
+        },500);
+        
+        plusButton.addEventListener('click', function() {
+            if(changes[team]) {
+                changes[team]++;
+            }  else {
+                changes[team] = 1;
+            }
+            this.itemModalChanges.innerHTML = JSON.stringify(changes)
+                .replace("}","</label>")
+                .replace(/\:/g,":  ")
+                .replace(/\,/g,"<br>")
+                .replace(/\"/g,"")
+                .replace("{","<label><b>Changes</b><br>");
+        }.bind(this));  
+        
+        minusButton.addEventListener('click', function() {
+            if(changes[team]) {
+                changes[team]--;
+            }  else {
+                changes[team] = -1;
+            } 
+            this.itemModalChanges.innerHTML = JSON.stringify(changes)
+                .replace("}","</label>")
+                .replace(/\:/g,":  ")
+                .replace(/\,/g,"<br>")
+                .replace(/\"/g,"")
+                .replace("{","<label><b>Changes</b><br>");
+        }.bind(this));
+        
+        this.itemModalDoneButton.addEventListener('click', function() {
+            
+        }.bind(this));
+        
+        $('#loading-modal').slideUp();
+    }.bind(this));
+    }.bind(this),500);
 }
 
 TeamStock.prototype.hideItemModal = function() {
+    $('#loading-modal').slideDown();
     this.itemModalContent.innerHTML = "";
-    $(this.itemModal).fadeOut();
+    this.itemModalChanges.innerHTML = "";
+    $(this.itemModal).fadeOut(200);
     this.setControlState(true);
-
 }
+
 // ========== DB Functions: ========== //
 TeamStock.prototype.dbLoadItems = function() {
     var itemRef = this.database.ref(this.prefix + 'items');
     
     var cats = [];
     
-    
     // Load Items List:
     itemRef.on('value', function (snapshot) {
         this.clearList();
+        
+        if(snapshot.val() == null) {
+            $('#loading-main').slideUp();
+            return;
+
+        }
         
         Object.keys(snapshot.val()).forEach(function(category) {
             cats.push(category);
@@ -227,8 +323,8 @@ TeamStock.prototype.dbLoadItems = function() {
                     this.appendListCategory.bind(this)(category);
                 }
             }.bind(this));
-       }.bind(this));
-
+        }.bind(this));
+        $('#loading-main').slideUp();
    }.bind(this));
 }
 
@@ -297,7 +393,7 @@ TeamStock.prototype.dbSaveCategory = function(category) {
 TeamStock.prototype.signIn = function () {
     // Sign in Firebase using popup auth and Google as the identity provider.
     var provider = new firebase.auth.GoogleAuthProvider();
-    this.auth.signInWithPopup(provider);
+    this.auth.signInWithRedirect(provider);
 };
 
 // Signs-out of TeamStock
@@ -396,8 +492,9 @@ TeamStock.prototype.onAuthStateChanged = function (user) {
         this.userPic.removeAttribute('hidden');
         this.signOutButton.removeAttribute('hidden');
 
-        // Hide sign-in button.
+        // Hide sign-in button and prompts.
         this.signInButton.setAttribute('hidden', 'true');
+        this.sidebarSigninPrompt.setAttribute('hidden', true);
         this.setControlState(true);
 
         
@@ -430,8 +527,9 @@ TeamStock.prototype.onAuthStateChanged = function (user) {
         this.userPic.setAttribute('hidden', 'true');
         this.signOutButton.setAttribute('hidden', 'true');
 
-        // Show sign-in button.
+        // Show sign-in button and prompts.
         this.signInButton.removeAttribute('hidden');
+        this.sidebarSigninPrompt.removeAttribute('hidden');
         this.setControlState(false);
 
         //toastr signed out setup
@@ -453,7 +551,14 @@ TeamStock.prototype.onAuthStateChanged = function (user) {
           "hideMethod": "fadeOut"
         }
         
+        this.itemList.innerHTML = " \
+        <h3> \
+            <i class=material-icons>keyboard_arrow_left</i> \
+                Open Sidebar to sign in \
+        </h3>";
+        
         toastr.error('You must sign in');
+        $('#loading-main').slideUp();
     }
 };
 
@@ -486,4 +591,3 @@ function extractDomain(url) {
 
     return domain;
 }
-
