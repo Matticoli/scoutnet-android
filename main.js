@@ -28,7 +28,7 @@ function TeamStock() {
     this.checkSetup();
     
     // Database Prefix:
-    this.prefix = extractDomain(window.location.href)+'/';
+    this.prefix = extractDomain(window.location.href.replace(/\./g,"_"))+'/';
     console.log("Env: "+"this.prefix");
 
     // Shortcuts to DOM Elements:
@@ -67,7 +67,7 @@ function TeamStock() {
     this.addItemButton.addEventListener('click', this.addItem.bind(this));
     this.addCategoryButton.addEventListener('click', this.addCategory.bind(this));
     this.createRequestButton.addEventListener('click', function() {
-        var url = "webhookurl";
+        var url = "";//get from db https://hooks.slack.com/services/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
         var params = "payload="+JSON.stringify({
             "text":"This is a test message from IE"
         });
@@ -96,14 +96,16 @@ TeamStock.prototype.listCategoryTemplate =' \
                 </span> \
             </span> \
         </li> \
+        <div id="cat-$NAME" class="mdl-list"> \
+        </div>\
 ';
 
 TeamStock.prototype.listItemTemplate =' \
-        <li class="mdl-list__item">\
-            <span id="lii-$NAME" class="mdl-list__item-secondary-action"> \
+        <li  id="lii-$NAME" class="mdl-list__item">\
+            <span class="mdl-list__item-secondary-action"> \
                 <span class="mdl-list__item-secondary-content"> \
                     <h5> \
-                        <i class="material-icons mdl-badge mdl-badge--overlap" data-badge="$NUM">send</i> \
+                        <i id="item-icon-$NAME" class="material-icons mdl-badge mdl-badge--overlap" data-badge="$NUM">send</i> \
                         $NAME \
                         <i hidden class="material-icons">check</i> \
                     </h5> \
@@ -174,7 +176,8 @@ TeamStock.prototype.clearList = function() {
 }
 
 TeamStock.prototype.appendListItem = function(item) {
-    this.itemList.innerHTML += this.listItemTemplate
+    console.log(item);
+    document.getElementById('cat-'+item.category).innerHTML += this.listItemTemplate
         .replace(/\$NAME/g, item.name)
         .replace(/\$NUM/g, item.distribution.storage);
     // Delay button wiring to ensure ample time for html content to be changed.
@@ -185,11 +188,22 @@ TeamStock.prototype.appendListItem = function(item) {
             console.log("Opening item modal");
             this.showItemModal.bind(this)(item);
         }.bind(this));
+        
+        
+        var itemsRef = this.database.ref(this.prefix + 'items/'+item.name+"/distribution");
+        itemsRef.on('value', function(snapshot) {
+            if(!snapshot.val()) {
+                console.error("ERROR: Updated item missing from list");
+            }
+            var icon = document.getElementById('item-icon-'+item.name);
+            icon.setAttribute("data-badge",snapshot.val()["storage"]);
+            
+        }.bind(this));
+        
     }.bind(this), 500);
 }
 
 TeamStock.prototype.appendListCategory = function(cat) {
-    console.log(cat);
     this.itemList.innerHTML += this.listCategoryTemplate
         .replace(/\$NAME/g, cat);
 }
@@ -224,67 +238,89 @@ TeamStock.prototype.addCategory = function() {
 //MODALS
 TeamStock.prototype.showItemModal = function(item) {
     this.itemModalContent.innerHTML = "<h4>"+item.name+"</h4>";
+    this.itemModalContent.innerHTML += "<p>"+item.description+"</p>";
     this.itemModalChanges.innerHTML = "";
     this.setControlState(false);
     $(this.itemModal).slideDown(200);
 
     setTimeout(function() {
-        
-    Object.keys(item.distribution).forEach( function (team) {
-        console.log(team);
-        this.itemModalContent.innerHTML += this.modalTeamTemplate
-            .replace(/\$NAME/g, team)
-            .replace(/\$NUM/g,item.distribution[team]);
-        
-        var plusButton = document.getElementById(team+'-plus');
-        var minusButton = document.getElementById(team+'-minus');
-        var changes = {};
-        plusButton.removeAttribute('hidden');
-        minusButton.removeAttribute('hidden');
-        
-        this.itemModalDoneButton.addEventListener('click', function() {
+    
+        var distribRef = this.database.ref(this.prefix + 'items/'+item.name+"/distribution");
+
+        distribRef.once('value', function (snapshot) {
             
-        },500);
-        
-        plusButton.addEventListener('click', function() {
-            if(changes[team]) {
-                changes[team]++;
-            }  else {
-                changes[team] = 1;
+            if(!snapshot.val()) {
+               return;
             }
-            this.itemModalChanges.innerHTML = JSON.stringify(changes)
-                .replace("}","</label>")
-                .replace(/\:/g,":  ")
-                .replace(/\,/g,"<br>")
-                .replace(/\"/g,"")
-                .replace("{","<label><b>Changes</b><br>");
-        }.bind(this));  
-        
-        minusButton.addEventListener('click', function() {
-            if(changes[team]) {
-                changes[team]--;
-            }  else {
-                changes[team] = -1;
-            } 
-            this.itemModalChanges.innerHTML = JSON.stringify(changes)
-                .replace("}","</label>")
-                .replace(/\:/g,":  ")
-                .replace(/\,/g,"<br>")
-                .replace(/\"/g,"")
-                .replace("{","<label><b>Changes</b><br>");
-        }.bind(this));
-        
-        this.itemModalDoneButton.addEventListener('click', function() {
             
-        }.bind(this));
-        
-        $('#loading-modal').slideUp();
-    }.bind(this));
+            console.log(snapshot.val());
+            
+            var distribution = snapshot.val();
+
+            Object.keys(distribution).forEach( function (team) {
+                console.log(team);
+                this.itemModalContent.innerHTML += this.modalTeamTemplate
+                    .replace(/\$NAME/g, team)
+                    .replace(/\$NUM/g,distribution[team]);
+
+                var plusButton = document.getElementById(team+'-plus');
+                var minusButton = document.getElementById(team+'-minus');
+                var changes = {};
+                plusButton.removeAttribute('hidden');
+                minusButton.removeAttribute('hidden');
+
+                this.itemModalDoneButton.addEventListener('click', function() {
+                    Object.keys(changes).forEach(function (team) {
+                        console.log('adding '+changes[team]+' to ' + parseInt(distribution[team]));
+                        distribution[team] = parseInt(distribution[team])+changes[team];
+                    }.bind(this));
+
+                    distribRef.update(distribution);
+                    this.hideItemModal.bind(this)();
+                }.bind(this));
+
+                plusButton.addEventListener('click', function() {
+                    if(changes[team]) {
+                        changes[team]++;
+                    }  else {
+                        changes[team] = 1;
+                    }
+                    this.itemModalChanges.innerHTML = JSON.stringify(changes)
+                        .replace("}","</label>")
+                        .replace(/\:/g,":  ")
+                        .replace(/\,/g,"<br>")
+                        .replace(/\"/g,"")
+                        .replace("{","<label><b>Changes</b><br>");
+                }.bind(this));  
+
+                minusButton.addEventListener('click', function() {
+                    if(changes[team]) {
+                        changes[team]--;
+                    }  else {
+                        changes[team] = -1;
+                    } 
+                    this.itemModalChanges.innerHTML = JSON.stringify(changes)
+                        .replace("}","</label>")
+                        .replace(/\:/g,":  ")
+                        .replace(/\,/g,"<br>")
+                        .replace(/\"/g,"")
+                        .replace("{","<label><b>Changes</b><br>");
+                }.bind(this));
+
+                $('#loading-modal').slideUp();
+            }.bind(this));
+        }.bind(this));    
     }.bind(this),500);
 }
 
 TeamStock.prototype.hideItemModal = function() {
-    $('#loading-modal').slideDown();
+    
+    // Clear done button listeners to avoid repeat actions
+    var doneButton = this.itemModalDoneButton;
+    var newButton = doneButton.cloneNode(true);
+    doneButton.parentNode.replaceChild(newButton, doneButton);
+    this.itemModalDoneButton = newButton;
+    
     this.itemModalContent.innerHTML = "";
     this.itemModalChanges.innerHTML = "";
     $(this.itemModal).fadeOut(200);
@@ -293,39 +329,51 @@ TeamStock.prototype.hideItemModal = function() {
 
 // ========== DB Functions: ========== //
 TeamStock.prototype.dbLoadItems = function() {
-    var itemRef = this.database.ref(this.prefix + 'items');
+    var itemsRef = this.database.ref(this.prefix + 'items');
+    var catRef = this.database.ref(this.prefix + 'categories');
+//    
+//    itemsRef.on('child_added', function(snapshot) {
+//        console.log("ADDED: "+snapshot.val());
+//    }.bind(this));
     
-    var cats = [];
+    this.doneLoading = false;
     
-    // Load Items List:
-    itemRef.on('value', function (snapshot) {
+    catRef.on('value', function(snapshot) {
         this.clearList();
         
-        if(snapshot.val() == null) {
-            $('#loading-main').slideUp();
-            return;
-
+        if(snapshot.val()) {
+            console.log(snapshot.val());
+            Object.keys(snapshot.val()).forEach(function(category) {
+                this.appendListCategory.bind(this)(category);
+            }.bind(this));
         }
         
-        Object.keys(snapshot.val()).forEach(function(category) {
-            cats.push(category);
-            this.appendListCategory.bind(this)(category);
-            Object.keys(snapshot.val()[category]).forEach(function(item) {
-                this.appendListItem.bind(this)(snapshot.val()[category][item]);
-            }.bind(this));
-        }.bind(this));        
+        // Only run this once to attatch listener
+        if (this.doneLoading) {
+            return;
+        } else {
+            this.doneLoading = true;
+        }
+        itemsRef.on('child_added', function(snapshot) {
+            if(!snapshot.val()) {
+                $('#loading-main').slideUp();
+                return;
+            }
+            $('#loading-main').slideDown();
 
-        // Load empty categories:
-        itemRef = this.database.ref(this.prefix + 'categories');
-        itemRef.once('value').then(function (snapshot) {
-            Object.keys(snapshot.val()).forEach(function(category) {
-                if(cats.indexOf(category) < 0) {
-                    this.appendListCategory.bind(this)(category);
-                }
-            }.bind(this));
+
+            this.appendListItem.bind(this)(snapshot.val());
+
+            $('#loading-main').slideUp();
         }.bind(this));
-        $('#loading-main').slideUp();
-   }.bind(this));
+    }.bind(this));
+    $('#loading-main').slideUp();
+
+    
+//    while(!doneLoading) {
+//        console.log("LOL");
+//    }
+    
 }
 
 TeamStock.prototype.dbCheckCategory = function(category, existsCallback, nexistsCallback) {
@@ -339,7 +387,7 @@ TeamStock.prototype.dbCheckCategory = function(category, existsCallback, nexists
 }
 
 TeamStock.prototype.dbSaveItem = function(item) {
-    var itemRef = this.database.ref(this.prefix + 'items/'+item.category.toUpperCase()+'/'+item.name);
+    var itemRef = this.database.ref(this.prefix + 'items/'+item.name);
     
     // Check if item exists
     itemRef.once('value').then(function (snapshot) {
@@ -368,6 +416,8 @@ TeamStock.prototype.dbSaveItem = function(item) {
 TeamStock.prototype.dbSaveCategory = function(category) {
     var catRef = this.database.ref(this.prefix + 'categories/'+category.name);
     
+    this.doneLoading = false;
+    
     // Check if item exists
     catRef.once('value').then(function (snapshot) {
         if(snapshot.val() != null) {
@@ -377,12 +427,13 @@ TeamStock.prototype.dbSaveCategory = function(category) {
             // Item does not exist, add item
             console.log("Adding new item to database...");
             catRef.set(category.description).then(function () {
-                console.log("New category added successfully!");
+                // Allow reload:
                 toastr.success("New category added successfully!");
             }.bind(this)).catch(function (error) {
+                this.doneLoading = true;
                 console.error('Error writing new category to Firebase Database', error);
                 toastr.error("Error saving new category to database.", "Uh oh...");
-            });
+            }.bind(this));
         }
     }.bind(this));
 }
