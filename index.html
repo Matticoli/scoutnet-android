@@ -31,7 +31,7 @@
     
     <!-- Material Design Lite -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-    <link rel="stylesheet" href="https://code.getmdl.io/1.1.3/material.orange-indigo.min.css">
+    <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.grey-light_blue.min.css" />
     <script defer src="https://code.getmdl.io/1.1.3/material.min.js"></script>
 <!--  TODO: Download these stylesheets^^  -->
     <!--  Google Fonts  -->
@@ -89,9 +89,9 @@
             </nav>
             <span class="mdl-layout-title">Teams</span>
             <nav id="sidebar-nav" class="mdl-navigation">
-                <a id="edit-teams" class="mdl-navigation__link" href="">
+                <a id="edit-teams" class="mdl-navigation__link">
                     <i class="material-icons">mode_edit</i>
-                    Manage Teams</a>
+                    Teams and App Settings</a>
                 <hr>
                 <a id="team-storage" class="mdl-navigation__link" href="">
                     <i class="material-icons">storage</i>
@@ -142,7 +142,7 @@
 
     <!--  Modals  -->
     <div id="item-modal" class="modal">
-        <div id="loading-modal" class="mdl-spinner mdl-js-spinner is-active"></div>
+        <div id="item-modal-loading" class="mdl-spinner mdl-js-spinner is-active"></div>
         
         <div id="item-modal-changes" class="panel-right">
             
@@ -151,9 +151,52 @@
         <ul id="item-modal-container" class="mdl-list">
             
         </ul>
-        <div class="button-container">
+        <div class="button-container-bottom-right">
             <button id="item-modal-cancel">Cancel<i class="material-icons">cancel</i></button>
             <button id="item-modal-done">Done<i class="material-icons">check_circle</i></button>
+        </div>
+    </div>
+    <div id="settings-modal" class="modal">
+        <h5>Settings</h5>
+        <div id="settings-modal-loading" class="mdl-spinner mdl-js-spinner is-active"></div>
+        <ul id="settings-modal-container" class="mdl-list">
+            <li class="mdl-list__item">
+                <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+                    <input id="settings-user-team" class="mdl-textfield__input" type="text" value=" ">
+                    <label class="mdl-textfield__label" for="settings-user-team">Your Team</label>
+                </div>
+            </li>
+        </ul>
+        <div hidden id="settings-modal-admin-container">
+            <ul class="mdl-list">
+                <li class="mdl-list__item">
+                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+                        <input id="settings-webhook" class="mdl-textfield__input" type="text" value=" ">
+                        <label class="mdl-textfield__label" for="settings-webhook">Slack Webhook</label>
+                    </div>
+                </li>
+                <li class="mdl-list__item">
+                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+                        <input id="settings-channel" class="mdl-textfield__input" type="text" value=" ">
+                        <label class="mdl-textfield__label" for="settings-channel">Slack Channel</label>
+                    </div>
+                </li>
+                <li class="mdl-list__item">
+                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+                        <input id="settings-teams" class="mdl-textfield__input" type="text" value=" ">
+                        <label class="mdl-textfield__label" for="settings-teams">Teams</label>
+                    </div>
+                </li>
+            </ul>
+
+            <h5>Users</h5>
+            <ul id="settings-modal-user-container" class="mdl-list">
+
+            </ul>
+        </div>
+        <div class="button-container-top-right">
+            <button id="settings-modal-cancel">Cancel<i class="material-icons">cancel</i></button>
+            <button id="settings-modal-done">Done<i class="material-icons">check_circle</i></button>
         </div>
     </div>
     <!---->

@@ -7,6 +7,10 @@
       overflow-x: hidden;
     }
 
+    .mdl-layout__content {
+        overflow-y: hidden;
+    }
+
     h1, h2, h3, h4, h5 {
         color: mintcream;
     }
@@ -29,9 +33,9 @@
     color: white;
     }
 
-.mdl-list__item-secondary-content i, h5{
-    display: inline-block;
-}
+    .mdl-list__item-secondary-content i, h5{
+        display: inline-block;
+    }
 
 /* App Content */
     #add {
@@ -47,11 +51,12 @@
         position: fixed;
         display: none;
         background-color: #828282;
-        height: 50%;
-        width: 80%;
+        height: 90%;
+        width: 90%;
         margin: auto;
-        border-radius: 10px;
+/*        border-radius: 10px;*/
         padding: 20px;
+        overflow-y: scroll;
     }
 
     .modal .panel-right {
@@ -68,11 +73,29 @@
         padding: 4px;
     }
 
-    .modal .button-container {
+    .modal .button-container-top-right {
+        position: absolute;
+        display: fixed;
+        top: 10px;
+        right: 10px;
+        padding: 10px;
+        word-spacing: 10px;
+    }
+    
+    .modal .button-container-bottom-right {
         position: absolute;
         display: fixed;
         bottom: 10px;
         right: 10px;
+        padding: 10px;
+        word-spacing: 10px;
+    }
+    
+    .modal .button-container-left {
+        position: absolute;
+        display: fixed;
+        bottom: 10px;
+        left: 10px;
         padding: 10px;
         word-spacing: 10px;
     }

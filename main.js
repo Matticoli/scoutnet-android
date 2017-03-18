@@ -50,15 +50,28 @@ function TeamStock() {
     this.teamStorageButton = document.getElementById('team-storage');
             // App
     this.searchBar = document.getElementById('fixed-header-drawer-exp');
+    this.addButton = document.getElementById('add');
+    this.addCategoryButton = document.getElementById('add-category');
+    this.addItemButton = document.getElementById('add-item');    
+    this.createRequestButton = document.getElementById('create-request');
+            // Item Modal
     this.itemModal = document.getElementById('item-modal');
     this.itemModalContent = document.getElementById('item-modal-container');
     this.itemModalChanges = document.getElementById('item-modal-changes');
     this.itemModalCancelButton = document.getElementById('item-modal-cancel');
     this.itemModalDoneButton = document.getElementById('item-modal-done');
-    this.addButton = document.getElementById('add');
-    this.addCategoryButton = document.getElementById('add-category');
-    this.addItemButton = document.getElementById('add-item');    
-    this.createRequestButton = document.getElementById('create-request');
+            // Settings Modal
+    this.settingsModal = document.getElementById('settings-modal');
+    this.settingsModalCancelButton = document.getElementById('settings-modal-cancel');
+    this.settingsModalDoneButton = document.getElementById('settings-modal-done');
+    this.settingsModalContent = document.getElementById('settings-modal-container');
+    this.settingsModalAdmin = document.getElementById('settings-modal-admin-container');
+    this.settingsModalUserTeam = document.getElementById('settings-user-team');
+    this.settingsModalWebhook = document.getElementById('settings-webhook');
+    this.settingsModalChannel = document.getElementById('settings-channel');
+    this.settingsModalTeams = document.getElementById('settings-teams');
+    this.settingsModalUsers = document.getElementById('settings-modal-user-container');
+    
             
     //Wire up buttons:
     this.signOutButton.addEventListener('click', this.signOut.bind(this));
@@ -66,7 +79,10 @@ function TeamStock() {
 //TODO: ADD MENU WIRING
     this.addItemButton.addEventListener('click', this.addItem.bind(this));
     this.addCategoryButton.addEventListener('click', this.addCategory.bind(this));
-    this.createRequestButton.addEventListener('click', function() {
+    
+    this.editTeamsButton.addEventListener('click', this.showSettingsModal.bind(this));
+    
+    var slack = function() {
         var url = "";//get from db https://hooks.slack.com/services/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
         var params = "payload="+JSON.stringify({
             "text":"This is a test message from IE"
@@ -78,17 +94,18 @@ function TeamStock() {
         xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
 
         xhr.send(params);
-    });
+    };
     
     
     this.itemModalCancelButton.addEventListener('click', this.hideItemModal.bind(this));
+    this.settingsModalCancelButton.addEventListener('click', this.hideSettingsModal.bind(this));
     
     this.initFirebase();   
 }
 
 /* HTML Templates */
 TeamStock.prototype.listCategoryTemplate =' \
-        <li id="lic-$NAME" class="mdl-list__item"> \
+        <li id="li-cat-$NAME" class="mdl-list__item"> \
             <span class="mdl-list__item-primary-action"> \
                 <span class="mdl-list__item-primary-content"> \
                     <i class="material-icons  mdl-list__item-avatar">build</i> \
@@ -101,7 +118,7 @@ TeamStock.prototype.listCategoryTemplate =' \
 ';
 
 TeamStock.prototype.listItemTemplate =' \
-        <li  id="lii-$NAME" class="mdl-list__item">\
+        <li  id="li-item-$NAME" class="mdl-list__item">\
             <span class="mdl-list__item-secondary-action"> \
                 <span class="mdl-list__item-secondary-content"> \
                     <h5> \
@@ -116,10 +133,10 @@ TeamStock.prototype.listItemTemplate =' \
 
 TeamStock.prototype.modalTeamTemplate =' \
         <li class="mdl-list__item">\
-            <span id="mli-$NAME" class="mdl-list__item-secondary-action"> \
+            <span id="li-team-$NAME" class="mdl-list__item-secondary-action"> \
                 <span class="mdl-list__item-secondary-content"> \
                     <h5> \
-                        <i class="material-icons mdl-badge mdl-badge--overlap" data-badge="$NUM">business_center</i> \
+                        <div id="pic-$ID"></div> \
                         $NAME \
                         <button hidden id="$NAME-plus"> \
                             <i class="material-icons">exposure_plus_1</i> \
@@ -133,8 +150,25 @@ TeamStock.prototype.modalTeamTemplate =' \
         </li> \
 ';
 
+TeamStock.prototype.modalUserTemplate =' \
+        <li id="li-user-$ID" class="mdl-list__item"> \
+            <span class="mdl-list__item-primary-action"> \
+                <span class="mdl-list__item-primary-content"> \
+                    <i class="material-icons  mdl-list__item-avatar">account_circle</i> \
+                    <h4> \
+                        $NAME - <i>$EMAIL</i>\
+                        <label class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="user-toggle-$ID"> \
+                            <span class="mdl-checkbox__label">Enabled:</span> \
+                            <input type="checkbox" id="user-toggle-$ID" class="mdl-checkbox__input"> \
+                        </label> \
+                    </h4> \
+                </span> \
+            </span> \
+        </li> \
+';
+
 TeamStock.prototype.drawerItemTemplate =' \
-                    <a class="mdl-navigation__link" href="">$NAME</a> \
+        <a class="mdl-navigation__link" href="">$NAME</a> \
 ';
 /*================*/
 
@@ -169,6 +203,7 @@ TeamStock.prototype.initFirebase = function () {
 TeamStock.prototype.setControlState = function(isEnabled) {
     this.addButton.disabled = !isEnabled;
     this.searchBar.disabled = !isEnabled;
+    this.itemList.disabled = !isEnabled;
 }
 
 TeamStock.prototype.clearList = function() {
@@ -182,7 +217,7 @@ TeamStock.prototype.appendListItem = function(item) {
         .replace(/\$NUM/g, item.distribution.storage);
     // Delay button wiring to ensure ample time for html content to be changed.
     setTimeout(function() {
-        var listItem = document.getElementById('lii-'+item.name);
+        var listItem = document.getElementById('li-item-'+item.name);
         
         listItem.addEventListener('click', function() {
             console.log("Opening item modal");
@@ -237,6 +272,11 @@ TeamStock.prototype.addCategory = function() {
 
 //MODALS
 TeamStock.prototype.showItemModal = function(item) {
+    
+    if(!this.checkSignedIn()) {
+        return;
+    }
+    
     this.itemModalContent.innerHTML = "<h4>"+item.name+"</h4>";
     this.itemModalContent.innerHTML += "<p>"+item.description+"</p>";
     this.itemModalChanges.innerHTML = "";
@@ -307,7 +347,7 @@ TeamStock.prototype.showItemModal = function(item) {
                         .replace("{","<label><b>Changes</b><br>");
                 }.bind(this));
 
-                $('#loading-modal').slideUp();
+                $('#item-modal-loading').slideUp();
             }.bind(this));
         }.bind(this));    
     }.bind(this),500);
@@ -324,6 +364,124 @@ TeamStock.prototype.hideItemModal = function() {
     this.itemModalContent.innerHTML = "";
     this.itemModalChanges.innerHTML = "";
     $(this.itemModal).fadeOut(200);
+    $('#item-modal-loading').slideDown();
+    this.setControlState(true);
+}
+
+TeamStock.prototype.showSettingsModal = function() {
+    if(!this.checkSignedIn()) {
+        return;
+    }
+    this.setControlState(false);
+    $(this.settingsModal).slideDown();
+    $('#settings-modal-loading').slideDown();
+    
+    var userRef = this.database.ref(this.prefix + 'users/'+this.auth.currentUser.uid);
+    
+    userRef.once('value').then(function(snapshot) {
+        if(!snapshot.val()) {
+            this.hideSettingsModal();
+            console.log(userRef.path);
+            toastr.error('Error loading user data');
+            return;
+        }
+        
+        this.settingsModalUserTeam.value = snapshot.val()['team'] || "";
+        
+        console.log(snapshot.val());
+        
+        if(snapshot.val()['admin']) {
+            
+            this.settingsModalAdmin.removeAttribute('hidden');
+            
+            this.settingsModalDoneButton.addEventListener('click', function() {
+                var userRef = this.database.ref(this.prefix + 'users/'+this.auth.currentUser.uid);
+
+                userRef.update({
+                    'team': this.settingsModalUserTeam.value || ""
+                });
+            }.bind(this));
+
+            var settingsRef = this.database.ref(this.prefix + 'settings/');
+            settingsRef.once('value').then(function(snapshot) {
+                if(!snapshot.val()) {
+                    return;
+                }
+                this.settingsModalWebhook.value = snapshot.val()['webhook'] || "";
+                this.settingsModalChannel.value = snapshot.val()['channel'] || "";
+                
+            }.bind(this));
+            
+            this.settingsModalUsers.innerHTML = "";
+            
+            var usersRef = this.database.ref(this.prefix + 'users/');
+            usersRef.once('value').then(function(snapshot) {
+                if(!snapshot.val()) {
+                    $('#settings-modal-loading').slideUp();
+                    return;
+                }
+                Object.keys(snapshot.val()).forEach( function(uid) {
+                    console.log(uid);
+                    this.settingsModalUsers.innerHTML += this.modalUserTemplate
+                        .replace(/\$NAME/g, snapshot.val()[uid].name)
+                        .replace(/\$EMAIL/g, snapshot.val()[uid].email)
+                        .replace(/\$ID/g, uid);
+                    setTimeout(function() {// Allows time to append html before trying to manipulate
+                        var toggle = document.getElementById('user-toggle-'+uid);
+                        if (snapshot.val()[uid]['active']) {
+                            toggle.checked = true;
+                            console.log("Checking box "+uid);
+                        }
+                        console.log(toggle);
+                        toggle.addEventListener('change', function() {
+                            var toggle = document.getElementById('user-toggle-'+uid);
+
+                            console.log(snapshot.val()[uid]['name']);
+                            var userRef = this.database.ref(this.prefix + 'users/' + uid);
+                            userRef.update({
+                               'active': toggle.checked
+                            }, function(error) {
+                                if(error) {
+                                    toastr.error("Unable to " + 
+                                           (toggle.checked ? "grant access to " : "revoke access from ") +
+                                            snapshot.val()[uid]['name'] +" - "+snapshot.val()[uid]['email']);
+                                } else {
+                                    toastr.success("Successfully " + 
+                                           (toggle.checked ? "granted access to " : "revoked access from ") +
+                                            snapshot.val()[uid]['name'] +" - "+snapshot.val()[uid]['email']);
+                                }
+                            }.bind(this));
+
+                        }.bind(this));
+                    }.bind(this),100);
+                }.bind(this));
+                $('#settings-modal-loading').slideUp();
+            }.bind(this));
+            
+            
+            
+            this.settingsModalDoneButton.addEventListener('click', function() {
+                var userRef = this.database.ref(this.prefix + 'users/'+this.auth.currentUser.uid);
+    
+                userRef.update({
+                    'team': this.settingsModalUserTeam.value || ""
+                });
+
+                var settingsRef = this.database.ref(this.prefix + 'settings');
+
+                settingsRef.update({
+                    'webhook': this.settingsModalWebhook.value || "",
+                    'channel': this.settingsModalChannel.value || ""
+                });
+            }.bind(this));
+        } else {
+            $('#settings-modal-loading').slideUp();
+        }
+    }.bind(this));
+}
+
+TeamStock.prototype.hideSettingsModal = function() {
+    $(this.settingsModal).fadeOut(200);
     this.setControlState(true);
 }
 
@@ -356,18 +514,18 @@ TeamStock.prototype.dbLoadItems = function() {
         }
         itemsRef.on('child_added', function(snapshot) {
             if(!snapshot.val()) {
-                $('#loading-main').slideUp();
+                $('#loading-main').stop().slideUp();
                 return;
             }
-            $('#loading-main').slideDown();
+            $('#loading-main').stop().slideDown();
 
 
             this.appendListItem.bind(this)(snapshot.val());
 
-            $('#loading-main').slideUp();
+            $('#loading-main').stop().slideUp();
         }.bind(this));
     }.bind(this));
-    $('#loading-main').slideUp();
+    $('#loading-main').stop().slideUp();
 
     
 //    while(!doneLoading) {
@@ -397,7 +555,7 @@ TeamStock.prototype.dbSaveItem = function(item) {
         } else {
             // Item does not exist, add item
             console.log("Adding new item to database...");
-            itemRef.set({ // Note: New user can not write to "active" property, so it must be omitted until an admin activates the user.
+            itemRef.set({ 
                 name: item.name,
                 description: item.description,
                 category: item.category,
