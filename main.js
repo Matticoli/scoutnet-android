@@ -76,10 +76,11 @@ function TeamStock() {
             
     //Search bar
     this.searchBar.addEventListener('change', this.search.bind(this));
+    
     //Wire up buttons:
     this.signOutButton.addEventListener('click', this.signOut.bind(this));
     this.signInButton.addEventListener('click', this.signIn.bind(this));
-//TODO: ADD MENU WIRING
+        // Add Menu
     this.addItemButton.addEventListener('click', this.addItem.bind(this));
     this.addCategoryButton.addEventListener('click', this.addCategory.bind(this));
     
@@ -313,7 +314,11 @@ TeamStock.prototype.search = function() {
             $("[id^=cat-"+query+"]").slideDown(250);
         }.bind(this),250);
     } else {
-        
+        // Filter by category
+        $("[id^=li-item-]").slideUp(250);
+        setTimeout(function() {
+            $("[id^=li-item-"+query+"]").slideDown(250);
+        }.bind(this),250);
     }
 }
 
@@ -398,11 +403,15 @@ TeamStock.prototype.showItemModal = function(item) {
             
             teamsRef.once('value', function (snapshot) {
                 var teams = snapshot.val();
+                if(!teams) {
+                    return;
+                }
                 Object.keys(distribution).forEach( function(key) {
                     delete teams[key];
                 }.bind(this));
                 appendTeams.bind(this)(distribution, teams);
             }.bind(this));
+            
             this.itemModalDoneButton.addEventListener('click', function() {
                 Object.keys(changes).forEach(function (team) {
                     console.log('adding '+changes[team]+' to ' + parseInt(distribution[team]));
@@ -506,6 +515,8 @@ TeamStock.prototype.showSettingsModal = function() {
                                     this.hideSettingsModal();
                                 }.bind(this));
                                 teamsRef.child(teamId).remove();
+                            } else {
+                                toastr.error("Team not deleted (cancelled or names did not match)");
                             }
                         }.bind(this));
                     }.bind(this),100);
@@ -818,11 +829,6 @@ TeamStock.prototype.saveUserIfNew = function(user) {
         if(snapshot.val() != null) {
             // User already exists
             toastr.success("Welcome back, " + user.displayName + "!")
-            
-            // Add admin buttons if user is admin
-            this.database.ref(this.prefix + 'admins/' + user.uid).once('value').then( function (snapshot) {
-                // TODO: Add admin buttons to sidebar
-            }.bind(this));
             
             // Check if user has permission to access database
             // If not, show access denied toast
