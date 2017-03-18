@@ -60,11 +60,11 @@
                 <div class="mdl-layout-spacer"></div>
                 <label>Filter:</label>
                 <div class="mdl-textfield mdl-js-textfield mdl-textfield--expandable mdl-textfield--floating-label mdl-textfield--align-right">
-                    <label class="mdl-button mdl-js-button mdl-button--icon" for="fixed-header-drawer-exp">
+                    <label class="mdl-button mdl-js-button mdl-button--icon" for="search">
                         <i class="material-icons">search</i>
                     </label>
                     <div class="mdl-textfield__expandable-holder">
-                        <input class="mdl-textfield__input" type="text" name="sample" id="fixed-header-drawer-exp">
+                        <input id="search" class="mdl-textfield__input" type="text" name="sample">
                     </div>
                 </div>
             </div>
@@ -181,12 +181,15 @@
                         <label class="mdl-textfield__label" for="settings-channel">Slack Channel</label>
                     </div>
                 </li>
-                <li class="mdl-list__item">
-                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-                        <input id="settings-teams" class="mdl-textfield__input" type="text" value=" ">
-                        <label class="mdl-textfield__label" for="settings-teams">Teams</label>
-                    </div>
-                </li>
+            <h5>Teams</h5>
+            <br>
+            <button id="settings-modal-add-team">
+                <h5>
+                    <i class="material-icons">group_add</i>
+                    <label class="mdl-color-text--black">Add Team</label>
+                </h5>
+            </button>
+            <ul id="settings-teams" class="mdl-list">
             </ul>
 
             <h5>Users</h5>
@@ -194,9 +197,9 @@
 
             </ul>
         </div>
-        <div class="button-container-top-right">
+        <div class="button-container-bottom-right">
             <button id="settings-modal-cancel">Cancel<i class="material-icons">cancel</i></button>
-            <button id="settings-modal-done">Done<i class="material-icons">check_circle</i></button>
+            <button id="settings-modal-done">Save<i class="material-icons">check_circle</i></button>
         </div>
     </div>
     <!---->

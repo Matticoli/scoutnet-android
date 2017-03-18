@@ -49,7 +49,7 @@ function TeamStock() {
     this.editTeamsButton = document.getElementById('edit-teams');
     this.teamStorageButton = document.getElementById('team-storage');
             // App
-    this.searchBar = document.getElementById('fixed-header-drawer-exp');
+    this.searchBar = document.getElementById('search');
     this.addButton = document.getElementById('add');
     this.addCategoryButton = document.getElementById('add-category');
     this.addItemButton = document.getElementById('add-item');    
@@ -66,6 +66,7 @@ function TeamStock() {
     this.settingsModalDoneButton = document.getElementById('settings-modal-done');
     this.settingsModalContent = document.getElementById('settings-modal-container');
     this.settingsModalAdmin = document.getElementById('settings-modal-admin-container');
+    this.settingsModalAddTeamButton = document.getElementById('settings-modal-add-team');
     this.settingsModalUserTeam = document.getElementById('settings-user-team');
     this.settingsModalWebhook = document.getElementById('settings-webhook');
     this.settingsModalChannel = document.getElementById('settings-channel');
@@ -73,6 +74,8 @@ function TeamStock() {
     this.settingsModalUsers = document.getElementById('settings-modal-user-container');
     
             
+    //Search bar
+    this.searchBar.addEventListener('change', this.search.bind(this));
     //Wire up buttons:
     this.signOutButton.addEventListener('click', this.signOut.bind(this));
     this.signInButton.addEventListener('click', this.signIn.bind(this));
@@ -99,7 +102,8 @@ function TeamStock() {
     
     this.itemModalCancelButton.addEventListener('click', this.hideItemModal.bind(this));
     this.settingsModalCancelButton.addEventListener('click', this.hideSettingsModal.bind(this));
-    
+    this.settingsModalAddTeamButton.addEventListener('click', this.addTeam.bind(this));
+
     this.initFirebase();   
 }
 
@@ -131,12 +135,12 @@ TeamStock.prototype.listItemTemplate =' \
         </li> \
 ';
 
-TeamStock.prototype.modalTeamTemplate =' \
+TeamStock.prototype.itemModalTeamTemplate =' \
         <li class="mdl-list__item">\
             <span id="li-team-$NAME" class="mdl-list__item-secondary-action"> \
                 <span class="mdl-list__item-secondary-content"> \
                     <h5> \
-                        <div id="pic-$ID"></div> \
+                        <i id="team-icon-$NAME" class="material-icons mdl-badge mdl-badge--overlap" data-badge="$NUM">business_center</i> \
                         $NAME \
                         <button hidden id="$NAME-plus"> \
                             <i class="material-icons">exposure_plus_1</i> \
@@ -145,6 +149,22 @@ TeamStock.prototype.modalTeamTemplate =' \
                             <i class="material-icons">exposure_neg_1</i> \
                         </button> \
                     </h5> \
+                </span> \
+            </span> \
+        </li> \
+';
+
+TeamStock.prototype.settingsModalTeamTemplate =' \
+        <li class="mdl-list__item">\
+            <span id="li-team-$NAME" class="mdl-list__item-secondary-action"> \
+                <span class="mdl-list__item-secondary-content"> \
+                    <h4> \
+                        <i class="material-icons">group</i> \
+                        $NAME \
+                        <button id="team-$NAME-del"> \
+                            <i class="material-icons">delete</i> \
+                        </button> \
+                    </h4> \
                 </span> \
             </span> \
         </li> \
@@ -160,6 +180,10 @@ TeamStock.prototype.modalUserTemplate =' \
                         <label class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="user-toggle-$ID"> \
                             <span class="mdl-checkbox__label">Enabled:</span> \
                             <input type="checkbox" id="user-toggle-$ID" class="mdl-checkbox__input"> \
+                        </label> \
+                        <label class="mdl-checkbox mdl-js-checkbox mdl-js-ripple-effect" for="admin-toggle-$ID"> \
+                            <span class="mdl-checkbox__label">Admin:</span> \
+                            <input type="checkbox" id="admin-toggle-$ID" class="mdl-checkbox__input"> \
                         </label> \
                     </h4> \
                 </span> \
@@ -270,6 +294,29 @@ TeamStock.prototype.addCategory = function() {
         });
 }
 
+TeamStock.prototype.addTeam = function() {
+    this.dbSaveTeam.bind(this)(
+        {
+            "name": window.prompt("Enter team name:").toUpperCase()
+        });
+}
+
+TeamStock.prototype.search = function() {
+    var query = this.searchBar.value;
+    
+    if(query == query.toUpperCase()) {
+        // Filter by category
+        $("[id^=li-cat-]").slideUp(250);
+        $("[id^=cat-]").slideUp(250);
+        setTimeout(function() {
+            $("[id^=li-cat-"+query+"]").slideDown(250);
+            $("[id^=cat-"+query+"]").slideDown(250);
+        }.bind(this),250);
+    } else {
+        
+    }
+}
+
 //MODALS
 TeamStock.prototype.showItemModal = function(item) {
     
@@ -282,10 +329,61 @@ TeamStock.prototype.showItemModal = function(item) {
     this.itemModalChanges.innerHTML = "";
     this.setControlState(false);
     $(this.itemModal).slideDown(200);
+    
+    var changes = {};
 
     setTimeout(function() {
     
         var distribRef = this.database.ref(this.prefix + 'items/'+item.name+"/distribution");
+        var teamsRef = this.database.ref(this.prefix + "teams");
+        
+        var appendTeams = function(distribution, teams) {
+            if(!teams) {
+                teams = distribution;
+            }
+            Object.keys(teams).forEach( function (team) {
+                console.log(team);
+                this.itemModalContent.innerHTML += this.itemModalTeamTemplate
+                    .replace(/\$NAME/g, team)
+                    .replace(/\$NUM/g,distribution[team] || 0);
+                setTimeout(function() {
+                    var plusButton = document.getElementById(team+'-plus');
+                    var minusButton = document.getElementById(team+'-minus');
+                    plusButton.removeAttribute('hidden');
+                    minusButton.removeAttribute('hidden');
+
+                    plusButton.addEventListener('click', function() {
+                        if(changes[team]) {
+                            changes[team]++;
+                        }  else {
+                            changes[team] = 1;
+                        }
+                        this.itemModalChanges.innerHTML = JSON.stringify(changes)
+                            .replace("}","</label>")
+                            .replace(/\:/g,":  ")
+                            .replace(/\,/g,"<br>")
+                            .replace(/\"/g,"")
+                            .replace("{","<label><b>Changes</b><br>");
+                    }.bind(this));  
+
+                    minusButton.addEventListener('click', function() {
+                        if(changes[team]) {
+                            changes[team]--;
+                        }  else {
+                            changes[team] = -1;
+                        } 
+                        this.itemModalChanges.innerHTML = JSON.stringify(changes)
+                            .replace("}","</label>")
+                            .replace(/\:/g,":  ")
+                            .replace(/\,/g,"<br>")
+                            .replace(/\"/g,"")
+                            .replace("{","<label><b>Changes</b><br>");
+                    }.bind(this));
+
+                    $('#item-modal-loading').slideUp();
+                }.bind(this), 100);
+            }.bind(this));
+        }
 
         distribRef.once('value', function (snapshot) {
             
@@ -296,60 +394,27 @@ TeamStock.prototype.showItemModal = function(item) {
             console.log(snapshot.val());
             
             var distribution = snapshot.val();
-
-            Object.keys(distribution).forEach( function (team) {
-                console.log(team);
-                this.itemModalContent.innerHTML += this.modalTeamTemplate
-                    .replace(/\$NAME/g, team)
-                    .replace(/\$NUM/g,distribution[team]);
-
-                var plusButton = document.getElementById(team+'-plus');
-                var minusButton = document.getElementById(team+'-minus');
-                var changes = {};
-                plusButton.removeAttribute('hidden');
-                minusButton.removeAttribute('hidden');
-
-                this.itemModalDoneButton.addEventListener('click', function() {
-                    Object.keys(changes).forEach(function (team) {
-                        console.log('adding '+changes[team]+' to ' + parseInt(distribution[team]));
-                        distribution[team] = parseInt(distribution[team])+changes[team];
-                    }.bind(this));
-
-                    distribRef.update(distribution);
-                    this.hideItemModal.bind(this)();
+            appendTeams.bind(this)(distribution);
+            
+            teamsRef.once('value', function (snapshot) {
+                var teams = snapshot.val();
+                Object.keys(distribution).forEach( function(key) {
+                    delete teams[key];
                 }.bind(this));
-
-                plusButton.addEventListener('click', function() {
-                    if(changes[team]) {
-                        changes[team]++;
-                    }  else {
-                        changes[team] = 1;
-                    }
-                    this.itemModalChanges.innerHTML = JSON.stringify(changes)
-                        .replace("}","</label>")
-                        .replace(/\:/g,":  ")
-                        .replace(/\,/g,"<br>")
-                        .replace(/\"/g,"")
-                        .replace("{","<label><b>Changes</b><br>");
-                }.bind(this));  
-
-                minusButton.addEventListener('click', function() {
-                    if(changes[team]) {
-                        changes[team]--;
-                    }  else {
-                        changes[team] = -1;
-                    } 
-                    this.itemModalChanges.innerHTML = JSON.stringify(changes)
-                        .replace("}","</label>")
-                        .replace(/\:/g,":  ")
-                        .replace(/\,/g,"<br>")
-                        .replace(/\"/g,"")
-                        .replace("{","<label><b>Changes</b><br>");
-                }.bind(this));
-
-                $('#item-modal-loading').slideUp();
+                appendTeams.bind(this)(distribution, teams);
             }.bind(this));
-        }.bind(this));    
+            this.itemModalDoneButton.addEventListener('click', function() {
+                Object.keys(changes).forEach(function (team) {
+                    console.log('adding '+changes[team]+' to ' + parseInt(distribution[team]));
+                    distribution[team] = parseInt(distribution[team] || "0")+changes[team];
+                }.bind(this));
+
+                distribRef.update(distribution);
+                this.hideItemModal.bind(this)();
+            }.bind(this));
+        }.bind(this));  
+
+        
     }.bind(this),500);
 }
 
@@ -413,6 +478,40 @@ TeamStock.prototype.showSettingsModal = function() {
             }.bind(this));
             
             this.settingsModalUsers.innerHTML = "";
+            this.settingsModalTeams.innerHTML = "";
+                        
+            var teamsRef = this.database.ref(this.prefix + 'teams/');
+            
+            teamsRef.once('value').then(function(snapshot) {
+                if(!snapshot.val()) {
+                    return;
+                }
+                Object.keys(snapshot.val()).forEach( function(teamId) {
+                    console.log(teamId);
+                    this.settingsModalTeams.innerHTML += this.settingsModalTeamTemplate
+                        .replace(/\$NAME/g, teamId);
+                    setTimeout(function() {// Allows time to append html before trying to manipulate
+                        var delButton = document.getElementById('team-'+teamId+'-del');
+                        delButton.addEventListener('click', function() {
+                            var confirm = window.prompt("All parts will be moved to storage. Enter team name ("+teamId+") to confirm deletion:");
+                            if(confirm == teamId) {
+                                var itemsRef =  this.database.ref(this.prefix + 'items/');
+                                itemsRef.once('value', function(snapshot) {
+                                    Object.keys(snapshot.val()).forEach(function (item) {
+                                        var distribution = snapshot.val()[item].distribution;
+                                        distribution['storage'] = parseInt(distribution['storage']) + parseInt(distribution[teamId] || "0");
+                                        delete distribution[teamId];
+                                        itemsRef.child(item).child('distribution').set(distribution);
+                                    }.bind(this));
+                                    this.hideSettingsModal();
+                                }.bind(this));
+                                teamsRef.child(teamId).remove();
+                            }
+                        }.bind(this));
+                    }.bind(this),100);
+                }.bind(this));
+                $('#settings-modal-loading').slideUp();
+            }.bind(this));
             
             var usersRef = this.database.ref(this.prefix + 'users/');
             usersRef.once('value').then(function(snapshot) {
@@ -430,10 +529,16 @@ TeamStock.prototype.showSettingsModal = function() {
                         var toggle = document.getElementById('user-toggle-'+uid);
                         if (snapshot.val()[uid]['active']) {
                             toggle.checked = true;
-                            console.log("Checking box "+uid);
                         }
                         console.log(toggle);
-                        toggle.addEventListener('change', function() {
+                        toggle.addEventListener('change', function(event) {
+                            if(uid == this.auth.currentUser.uid) {
+                                if(!window.confirm("Are you sure you want to change your own permissions? You may not be able to change them back")) {
+                                    event.preventDefault();
+                                    return;
+                                }
+                            }
+                            
                             var toggle = document.getElementById('user-toggle-'+uid);
 
                             console.log(snapshot.val()[uid]['name']);
@@ -454,6 +559,39 @@ TeamStock.prototype.showSettingsModal = function() {
 
                         }.bind(this));
                     }.bind(this),100);
+                    setTimeout(function() {// Allows time to append html before trying to manipulate
+                        var toggle = document.getElementById('admin-toggle-'+uid);
+                        if (snapshot.val()[uid]['admin']) {
+                            toggle.checked = true;
+                        }
+                        console.log(toggle);
+                        toggle.addEventListener('change', function(event) {
+                            if(uid == this.auth.currentUser.uid) {
+                                if(!window.confirm("Are you sure you want to change your own permissions? You may not be able to change them back")) {
+                                    event.preventDefault();
+                                }
+                            }
+                            
+                            var toggle = document.getElementById('admin-toggle-'+uid);
+
+                            console.log(snapshot.val()[uid]['name']);
+                            var userRef = this.database.ref(this.prefix + 'users/' + uid);
+                            userRef.update({
+                               'admin': toggle.checked
+                            }, function(error) {
+                                if(error) {
+                                    toastr.error("Unable to " + 
+                                           (toggle.checked ? "grant admin to " : "revoke admin from ") +
+                                            snapshot.val()[uid]['name'] +" - "+snapshot.val()[uid]['email']);
+                                } else {
+                                    toastr.success("Successfully " + 
+                                           (toggle.checked ? "granted admin to " : "revoked admin from ") +
+                                            snapshot.val()[uid]['name'] +" - "+snapshot.val()[uid]['email']);
+                                }
+                            }.bind(this));
+
+                        }.bind(this));
+                    }.bind(this),100);
                 }.bind(this));
                 $('#settings-modal-loading').slideUp();
             }.bind(this));
@@ -465,14 +603,28 @@ TeamStock.prototype.showSettingsModal = function() {
     
                 userRef.update({
                     'team': this.settingsModalUserTeam.value || ""
-                });
+                }, function(error) {
+                    if(error) {
+                        toastr.error('Error saving user settings.');
+                    } else {
+                        toastr.success('User settings saved successfully.')
+                    }
+                }.bind(this));
 
                 var settingsRef = this.database.ref(this.prefix + 'settings');
 
                 settingsRef.update({
                     'webhook': this.settingsModalWebhook.value || "",
                     'channel': this.settingsModalChannel.value || ""
-                });
+                }, function(error) {
+                    if(error) {
+                        toastr.error('Error saving admin settings.');
+                    } else {
+                        toastr.success('Admin settings saved successfully.')
+                    }
+                }.bind(this));
+                
+                this.hideSettingsModal.bind(this)();
             }.bind(this));
         } else {
             $('#settings-modal-loading').slideUp();
@@ -481,6 +633,12 @@ TeamStock.prototype.showSettingsModal = function() {
 }
 
 TeamStock.prototype.hideSettingsModal = function() {
+    // Clear done button listeners to avoid repeat actions
+    var doneButton = this.settingsModalDoneButton;
+    var newButton = doneButton.cloneNode(true);
+    doneButton.parentNode.replaceChild(newButton, doneButton);
+    this.settingsModalDoneButton = newButton;
+    
     $(this.settingsModal).fadeOut(200);
     this.setControlState(true);
 }
@@ -576,13 +734,13 @@ TeamStock.prototype.dbSaveCategory = function(category) {
     
     this.doneLoading = false;
     
-    // Check if item exists
+    // Check if category exists
     catRef.once('value').then(function (snapshot) {
         if(snapshot.val() != null) {
-            // Item already exists
+            // Category already exists
             toastr.error("That category already exists!", "Uh oh..");
         } else {
-            // Item does not exist, add item
+            // Category does not exist, add item
             console.log("Adding new item to database...");
             catRef.set(category.description).then(function () {
                 // Allow reload:
@@ -591,6 +749,29 @@ TeamStock.prototype.dbSaveCategory = function(category) {
                 this.doneLoading = true;
                 console.error('Error writing new category to Firebase Database', error);
                 toastr.error("Error saving new category to database.", "Uh oh...");
+            }.bind(this));
+        }
+    }.bind(this));
+}
+
+TeamStock.prototype.dbSaveTeam = function(team) {
+    var teamsRef = this.database.ref(this.prefix + 'teams/'+team.name);
+        
+    // Check if item exists
+    teamsRef.once('value').then(function (snapshot) {
+        if(snapshot.val() != null) {
+            // Team already exists
+            toastr.error("That team already exists!", "Uh oh..");
+        } else {
+            // Team does not exist, add item
+            console.log("Adding new team to database...");
+            teamsRef.set("").then(function () {
+                toastr.success("New team added successfully!");
+                this.hideSettingsModal.bind(this)();
+                this.showSettingsModal.bind(this)();
+            }.bind(this)).catch(function (error) {
+                console.error('Error writing new team to Firebase Database', error);
+                toastr.error("Error saving new team to database.", "Uh oh...");
             }.bind(this));
         }
     }.bind(this));
@@ -672,7 +853,8 @@ TeamStock.prototype.saveUserIfNew = function(user) {
             userRef.set({ // Note: New user can not write to "active" property, so it must be omitted until an admin activates the user.
                 uid: user.uid,
                 name: user.displayName,
-                email: user.email
+                email: user.email,
+                pic: user.photoURL
             }).then(function () {
                 console.log("New user added successfully!");
                 toastr.success("Welcome, " + user.displayName + "!");

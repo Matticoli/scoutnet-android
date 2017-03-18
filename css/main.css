@@ -99,6 +99,12 @@
         padding: 10px;
         word-spacing: 10px;
     }
+    
+    .modal .mdl-textfield__input {
+        color: whitesmoke;
+        border-top: solid silver 1px;
+        border-bottom: solid silver 1px;
+    }
 
 .modal .material-icons {
     color: black;
