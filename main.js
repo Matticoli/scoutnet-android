@@ -36,6 +36,7 @@ function TeamStock() {
         // Containers
     this.appContainer = document.getElementById('app-container');
     this.drawerContainer = document.getElementById('drawer-container');
+    this.sidebarTeamsContainer = document.getElementById('sidebar-teams');
     this.teamsContainer = document.getElementById('sidebar-nav');
     this.itemList = document.getElementById('item-list');
         // Auth
@@ -47,8 +48,9 @@ function TeamStock() {
             // Sidebar
     this.sidebarSigninPrompt = document.getElementById('sidebar-sign-in-prompt');
     this.editTeamsButton = document.getElementById('edit-teams');
-    this.teamStorageButton = document.getElementById('team-storage');
+    this.teamStorageButton = document.getElementById('drawer-team-storage');
             // App
+    this.selectedTeamlabel = document.getElementById('selected-team');
     this.searchBar = document.getElementById('search');
     this.addButton = document.getElementById('add');
     this.addCategoryButton = document.getElementById('add-category');
@@ -64,18 +66,21 @@ function TeamStock() {
     this.settingsModal = document.getElementById('settings-modal');
     this.settingsModalCancelButton = document.getElementById('settings-modal-cancel');
     this.settingsModalDoneButton = document.getElementById('settings-modal-done');
+    this.settingsModalDeleteItemButton = document.getElementById('settings-modal-delete-item');
+    this.settingsModalDeleteCategoryButton = document.getElementById('settings-modal-delete-category');
     this.settingsModalContent = document.getElementById('settings-modal-container');
     this.settingsModalAdmin = document.getElementById('settings-modal-admin-container');
     this.settingsModalAddTeamButton = document.getElementById('settings-modal-add-team');
     this.settingsModalUserTeam = document.getElementById('settings-user-team');
     this.settingsModalWebhook = document.getElementById('settings-webhook');
     this.settingsModalChannel = document.getElementById('settings-channel');
+    this.settingsModalSlackEnabled = document.getElementById('settings-slack-enabled');
     this.settingsModalTeams = document.getElementById('settings-teams');
     this.settingsModalUsers = document.getElementById('settings-modal-user-container');
     
             
     //Search bar
-    this.searchBar.addEventListener('change', this.search.bind(this));
+    this.searchBar.addEventListener('keydown', this.search.bind(this));
     
     //Wire up buttons:
     this.signOutButton.addEventListener('click', this.signOut.bind(this));
@@ -86,24 +91,11 @@ function TeamStock() {
     
     this.editTeamsButton.addEventListener('click', this.showSettingsModal.bind(this));
     
-    var slack = function() {
-        var url = "";//get from db https://hooks.slack.com/services/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
-        var params = "payload="+JSON.stringify({
-            "text":"This is a test message from IE"
-        });
-        var xhr = new XMLHttpRequest();
-        xhr.open("POST", url, true);
-
-        //Send the proper header information along with the request
-        xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-
-        xhr.send(params);
-    };
-    
-    
     this.itemModalCancelButton.addEventListener('click', this.hideItemModal.bind(this));
     this.settingsModalCancelButton.addEventListener('click', this.hideSettingsModal.bind(this));
     this.settingsModalAddTeamButton.addEventListener('click', this.addTeam.bind(this));
+    this.settingsModalDeleteCategoryButton.addEventListener('click', this.deleteCategory.bind(this));
+    this.settingsModalDeleteItemButton.addEventListener('click', this.deleteItem.bind(this));
 
     this.initFirebase();   
 }
@@ -193,7 +185,10 @@ TeamStock.prototype.modalUserTemplate =' \
 ';
 
 TeamStock.prototype.drawerItemTemplate =' \
-        <a class="mdl-navigation__link" href="">$NAME</a> \
+        <a id="drawer-team-$NAME" class="mdl-navigation__link"> \
+            <i class="material-icons">group</i> \
+            $NAME \
+        </a> \
 ';
 /*================*/
 
@@ -239,7 +234,7 @@ TeamStock.prototype.appendListItem = function(item) {
     console.log(item);
     document.getElementById('cat-'+item.category).innerHTML += this.listItemTemplate
         .replace(/\$NAME/g, item.name)
-        .replace(/\$NUM/g, item.distribution.storage);
+        .replace(/\$NUM/g, item.distribution[this.activeTeam] || 0);
     // Delay button wiring to ensure ample time for html content to be changed.
     setTimeout(function() {
         var listItem = document.getElementById('li-item-'+item.name);
@@ -256,8 +251,8 @@ TeamStock.prototype.appendListItem = function(item) {
                 console.error("ERROR: Updated item missing from list");
             }
             var icon = document.getElementById('item-icon-'+item.name);
-            icon.setAttribute("data-badge",snapshot.val()["storage"]);
-            
+            icon.setAttribute("data-badge",0);
+            icon.setAttribute("data-badge",snapshot.val()[this.activeTeam] || 0);
         }.bind(this));
         
     }.bind(this), 500);
@@ -276,10 +271,10 @@ TeamStock.prototype.addItem = function() {
         // Category exists
         this.dbSaveItem.bind(this)(
         {
-            "name": window.prompt("Enter item name:"),
-            "description": window.prompt("Enter item description:"),
+            "name": window.prompt("Enter item name:").toLowerCase() || "",
+            "description": window.prompt("Enter item description:") || "",
             "category": category,
-            "distribution": {"storage": window.prompt("Enter qty in storage:")}
+            "distribution": {"Storage": parseInt(window.prompt("Enter qty in storage:")) || 0}
         });
     }.bind(this), function() {
         // Category DNE
@@ -302,10 +297,24 @@ TeamStock.prototype.addTeam = function() {
         });
 }
 
-TeamStock.prototype.search = function() {
+TeamStock.prototype.deleteCategory = function() {
+}
+
+TeamStock.prototype.deleteItem = function() {
+}
+
+TeamStock.prototype.search = function(keyEvent) {
+    // Return if key is not enter
+    if(keyEvent.which != 13) {
+        return;
+    }
+    
     var query = this.searchBar.value;
     
-    if(query == query.toUpperCase()) {
+    if(query.length == 0) {
+        $("[id^=li-cat-]").slideDown(250);
+        $("[id^=cat-]").slideDown(250);
+    }else if(query == query.toUpperCase()) {
         // Filter by category
         $("[id^=li-cat-]").slideUp(250);
         $("[id^=cat-]").slideUp(250);
@@ -320,6 +329,36 @@ TeamStock.prototype.search = function() {
             $("[id^=li-item-"+query+"]").slideDown(250);
         }.bind(this),250);
     }
+}
+
+TeamStock.prototype.loadSidebarContents = function() {
+    
+    this.teamStorageButton.addEventListener('click', function() {
+        console.log("Switched to storage");
+        this.setActiveTeam.bind(this)('Storage');
+    }.bind(this));
+    
+    var teamsRef = this.database.ref(this.prefix + 'teams');
+    teamsRef.on('value', function(snapshot) {
+        this.sidebarTeamsContainer.innerHTML = "";
+        Object.keys(snapshot.val()).forEach(function (teamName) {
+            this.sidebarTeamsContainer.innerHTML += this.drawerItemTemplate
+                .replace(/\$NAME/g, teamName);
+            setTimeout(function() {
+                document.getElementById('drawer-team-'+teamName).addEventListener('click', function() {
+                    setTimeout(function() {
+                        this.setActiveTeam.bind(this)(teamName);
+                    }.bind(this), 100);
+                }.bind(this));
+            }.bind(this),100);
+        }.bind(this));
+    }.bind(this));
+}
+
+TeamStock.prototype.setActiveTeam = function(teamName) {
+    this.activeTeam = teamName;
+    this.selectedTeamlabel.innerHTML = teamName;
+    this.dbLoadItems.bind(this)();
 }
 
 //MODALS
@@ -419,6 +458,8 @@ TeamStock.prototype.showItemModal = function(item) {
                 }.bind(this));
 
                 distribRef.update(distribution);
+                toastr.success("Changes made successfully");
+                this.slack.bind(this)("*"+this.auth.currentUser.displayName.split(" ")[0] + " made the following movements of "+item.name+":*\n_" + JSON.stringify(changes)+"_");
                 this.hideItemModal.bind(this)();
             }.bind(this));
         }.bind(this));  
@@ -483,6 +524,8 @@ TeamStock.prototype.showSettingsModal = function() {
                 }
                 this.settingsModalWebhook.value = snapshot.val()['webhook'] || "";
                 this.settingsModalChannel.value = snapshot.val()['channel'] || "";
+                this.settingsModalSlackEnabled.checked = snapshot.val()['slackEnabled'];
+                this.settingsModalSlackEnabled.setAttribute('checked', snapshot.val()['slackEnabled']);
                 
             }.bind(this));
             
@@ -508,7 +551,7 @@ TeamStock.prototype.showSettingsModal = function() {
                                 itemsRef.once('value', function(snapshot) {
                                     Object.keys(snapshot.val()).forEach(function (item) {
                                         var distribution = snapshot.val()[item].distribution;
-                                        distribution['storage'] = parseInt(distribution['storage']) + parseInt(distribution[teamId] || "0");
+                                        distribution['Storage'] = parseInt(distribution['Storage']) + parseInt(distribution[teamId] || "0");
                                         delete distribution[teamId];
                                         itemsRef.child(item).child('distribution').set(distribution);
                                     }.bind(this));
@@ -564,6 +607,9 @@ TeamStock.prototype.showSettingsModal = function() {
                                 } else {
                                     toastr.success("Successfully " + 
                                            (toggle.checked ? "granted access to " : "revoked access from ") +
+                                            snapshot.val()[uid]['name'] +" - "+snapshot.val()[uid]['email']);
+                                    this.slack.bind(this)("_" +this.auth.currentUser.displayName.split(" ")[0] +
+                                            (toggle.checked ? " granted access to " : " revoked access from ") +
                                             snapshot.val()[uid]['name'] +" - "+snapshot.val()[uid]['email']);
                                 }
                             }.bind(this));
@@ -626,7 +672,8 @@ TeamStock.prototype.showSettingsModal = function() {
 
                 settingsRef.update({
                     'webhook': this.settingsModalWebhook.value || "",
-                    'channel': this.settingsModalChannel.value || ""
+                    'channel': this.settingsModalChannel.value || "",
+                    'slackEnabled': this.settingsModalSlackEnabled.checked
                 }, function(error) {
                     if(error) {
                         toastr.error('Error saving admin settings.');
@@ -658,10 +705,6 @@ TeamStock.prototype.hideSettingsModal = function() {
 TeamStock.prototype.dbLoadItems = function() {
     var itemsRef = this.database.ref(this.prefix + 'items');
     var catRef = this.database.ref(this.prefix + 'categories');
-//    
-//    itemsRef.on('child_added', function(snapshot) {
-//        console.log("ADDED: "+snapshot.val());
-//    }.bind(this));
     
     this.doneLoading = false;
     
@@ -732,10 +775,15 @@ TeamStock.prototype.dbSaveItem = function(item) {
             }).then(function () {
                 console.log("New item added successfully!");
                 toastr.success("New item added successfully!");
+                this.slack.bind(this)("*"+this.auth.currentUser.displayName.split(" ")[0] + "* _added new item *"+item.name+"* to category *" + item.category + "*_\nQty: _"+JSON.stringify(item.distribution)+"_");
             }.bind(this)).catch(function (error) {
                 console.error('Error writing new item to Firebase Database', error);
                 toastr.error("Error saving new item to database.", "Uh oh...");
             });
+        }
+    }.bind(this), function(error) {
+        if(error) {
+            toastr.error('Error creating item');
         }
     }.bind(this));
 }
@@ -756,6 +804,7 @@ TeamStock.prototype.dbSaveCategory = function(category) {
             catRef.set(category.description).then(function () {
                 // Allow reload:
                 toastr.success("New category added successfully!");
+                this.slack.bind(this)("*"+this.auth.currentUser.displayName.split(" ")[0] + "* _added new category *" + category.name + "*_");
             }.bind(this)).catch(function (error) {
                 this.doneLoading = true;
                 console.error('Error writing new category to Firebase Database', error);
@@ -787,6 +836,32 @@ TeamStock.prototype.dbSaveTeam = function(team) {
         }
     }.bind(this));
 }
+
+// Slack //
+TeamStock.prototype.slack = function(message) {
+    var settingsRef = this.database.ref(this.prefix + 'settings');
+    settingsRef.once('value').then(function(snapshot) {
+        var url = snapshot.val()['webhook'] || "";
+        if(!url || !snapshot.val()['slackEnabled']) {
+            return;
+        }
+        var payload = {
+            "text":message,
+            "username": "[team-stock] " + this.auth.currentUser.displayName, 
+            "icon_emoji": ":wrench:"
+        };
+        if(snapshot.val()['channel']) {
+            payload['channel'] = snapshot.val()['channel'];
+        }
+        var params = "payload="+JSON.stringify(payload);
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", url, true);
+
+        //Send the proper header information along with the request
+        xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+        xhr.send(params);
+    }.bind(this));
+};
 
 // ========== Auth Functions: ========== //
 
@@ -829,7 +904,6 @@ TeamStock.prototype.saveUserIfNew = function(user) {
         if(snapshot.val() != null) {
             // User already exists
             toastr.success("Welcome back, " + user.displayName + "!")
-            
             // Check if user has permission to access database
             // If not, show access denied toast
             if (!(snapshot.val().active)) {
@@ -852,6 +926,9 @@ TeamStock.prototype.saveUserIfNew = function(user) {
                   "hideMethod": "fadeOut"
                 }
                 toastr.error("You do not have permission to access the database.", "Uh oh..");
+            } else {
+                this.setActiveTeam.bind(this)(snapshot.val()['team'] || 'Storage');
+//                this.dbLoadItems.bind(this)();
             }
         } else {
             // User does not exist, add user
@@ -864,6 +941,8 @@ TeamStock.prototype.saveUserIfNew = function(user) {
             }).then(function () {
                 console.log("New user added successfully!");
                 toastr.success("Welcome, " + user.displayName + "!");
+                this.slack.bind(this)("_New user *"+user.displayName+" - "+user.email+"* has logged in for the first time._\n" +
+                                     "_An admin must log in to enable this account._");
             }.bind(this)).catch(function (error) {
                 console.error('Error writing new user to Firebase Database', error);
                 toastr.error("Error saving new user to database. You may need to sign out and sign back in.", "Uh oh...");
@@ -915,7 +994,8 @@ TeamStock.prototype.onAuthStateChanged = function (user) {
             }
         toastr.clear();
         
-        this.dbLoadItems.bind(this)();
+//        this.dbLoadItems.bind(this)();
+        this.loadSidebarContents.bind(this)();
         
     } else { // User is signed out!
         this.clearList.bind(this)();
