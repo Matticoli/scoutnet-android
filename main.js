@@ -1,5 +1,5 @@
 /**
- * Copyright 2016 Mikel Matticoli. All Rights Reserved.
+ * Copyright 2016-2017 TSA-PARTICIPANT-#2083009. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * Portions of this file are derrived from FriendlyChat, which is property of Google, Inc.
- *            https://github.com/firebase/friendlychat
+ * This app utilizes the Firebase Realtime Database API, which is property of Google, Inc.
+ *            https://github.com/firebase/
  */
 
 'use strict';
@@ -23,13 +23,19 @@
 // ========== Setup/Startup: ========== //
 
 // Initializes TeamStock.
-// All instances of "this" point to TeamStock obj
+// All functionality is encapsulated 
 function TeamStock() {
+    //DISABLE CONSOLE FOR PRODUCTION, COMMENT FOR DEBUG MODE:
+    var console = {};
+    console.log = function(){};
+    window.console = console;
+    //END CONSOLE DISABLE
+    
     this.checkSetup();
     
     // Database Prefix:
-    this.prefix = extractDomain(window.location.href.replace(/\./g,"_"))+'/';
-    console.log("Env: "+"this.prefix");
+    this.prefix = extractDomain(window.location.href.replace(/\./g,'_'))+'/';
+    console.log('Env: '+'this.prefix');
 
     // Shortcuts to DOM Elements:
     this.body = document.getElementById('body');
@@ -114,7 +120,7 @@ TeamStock.prototype.listCategoryTemplate =' \
         </div>\
 ';
 
-TeamStock.prototype.listItemTemplate =' \
+TeamStock.prototype.listItemTemplate = ' \
         <li  id="li-item-$NAME" class="mdl-list__item">\
             <span class="mdl-list__item-secondary-action"> \
                 <span class="mdl-list__item-secondary-content"> \
@@ -227,7 +233,7 @@ TeamStock.prototype.setControlState = function(isEnabled) {
 }
 
 TeamStock.prototype.clearList = function() {
-    this.itemList.innerHTML = "";
+    this.itemList.innerHTML = '';
 }
 
 TeamStock.prototype.appendListItem = function(item) {
@@ -240,19 +246,19 @@ TeamStock.prototype.appendListItem = function(item) {
         var listItem = document.getElementById('li-item-'+item.name);
         
         listItem.addEventListener('click', function() {
-            console.log("Opening item modal");
+            console.log('Opening item modal');
             this.showItemModal.bind(this)(item);
         }.bind(this));
         
         
-        var itemsRef = this.database.ref(this.prefix + 'items/'+item.name+"/distribution");
+        var itemsRef = this.database.ref(this.prefix + 'items/'+item.name+'/distribution');
         itemsRef.on('value', function(snapshot) {
             if(!snapshot.val()) {
-                console.error("ERROR: Updated item missing from list");
+                console.error('ERROR: Updated item missing from list');
             }
             var icon = document.getElementById('item-icon-'+item.name);
-            icon.setAttribute("data-badge",0);
-            icon.setAttribute("data-badge",snapshot.val()[this.activeTeam] || 0);
+            icon.setAttribute('data-badge',0);
+            icon.setAttribute('data-badge',snapshot.val()[this.activeTeam] || 0);
         }.bind(this));
         
     }.bind(this), 500);
@@ -265,16 +271,16 @@ TeamStock.prototype.appendListCategory = function(cat) {
 
 TeamStock.prototype.addItem = function() {
     
-    var category = window.prompt("Enter item category:").toUpperCase();
+    var category = window.prompt('Enter item category:').toUpperCase();
     
     this.dbCheckCategory.bind(this)(category, function() {
         // Category exists
         this.dbSaveItem.bind(this)(
         {
-            "name": window.prompt("Enter item name:").toLowerCase() || "",
-            "description": window.prompt("Enter item description:") || "",
-            "category": category,
-            "distribution": {"Storage": parseInt(window.prompt("Enter qty in storage:")) || 0}
+            'name': window.prompt('Enter item name:').toLowerCase() || '',
+            'description': window.prompt('Enter item description:') || '',
+            'category': category,
+            'distribution': {'Storage': parseInt(window.prompt('Enter qty in storage:')) || 0}
         });
     }.bind(this), function() {
         // Category DNE
@@ -285,22 +291,74 @@ TeamStock.prototype.addItem = function() {
 TeamStock.prototype.addCategory = function() {
     this.dbSaveCategory.bind(this)(
         {
-            "name": window.prompt("Enter category name:").toUpperCase(),
-            "description": window.prompt("Enter category description:")
+            'name': window.prompt('Enter category name:').toUpperCase(),
+            'description': window.prompt('Enter category description:')
         });
 }
 
 TeamStock.prototype.addTeam = function() {
     this.dbSaveTeam.bind(this)(
         {
-            "name": window.prompt("Enter team name:").toUpperCase()
+            'name': window.prompt('Enter team name:').toUpperCase()
         });
 }
 
 TeamStock.prototype.deleteCategory = function() {
+        
+    var delCategory = window.prompt('Enter the name of the category to delete\nTHIS CANNOT BE UNDONE').toUpperCase();
+    
+    this.dbCheckCategory.bind(this)(delCategory, function() {
+        // Category exists
+        var mvCategory = window.prompt('Which category would you like to move the items in ' + delCategory + 'to?').toUpperCase();
+        if(mvCategory == delCategory) {
+            mvCategory = '';
+        }
+        this.dbCheckCategory.bind(this)(mvCategory, function() {
+            // Category exists
+            var itemsRef = this.database.ref(this.prefix + 'items');
+            itemsRef.once('value').then(function(snapshot) {
+                if(!snapshot.val()) {
+                    return;
+                }
+                Object.keys(snapshot.val()).forEach(function(itemName) {
+                    if(snapshot.val()[itemName]['category'] == delCategory) {
+                        console.log('moving '+itemName+' from '+delCategory+' to '+mvCategory);
+                        itemsRef.child(itemName).update({
+                            'category': mvCategory
+                        });
+                    }
+                }.bind(this));
+                toastr.success('Successfully deleted category '+delCategory+' and moved all items to '+mvCategory);
+                this.slack.bind(this)(this.auth.currentUser.displayName.split(' ')[0]+' deleted category '+delCategory+' and moved all items to '+mvCategory);
+            }.bind(this));
+            var catsRef = this.database.ref(this.prefix + 'categories/'+delCategory);
+            catsRef.remove();
+            setTimeout(this.dbLoadItems.bind(this), 100);
+        }.bind(this), function() {
+            // Category DNE
+            toastr.error('No such category '+mvCategory+'! Please specify an existing category or try a different one.');
+        }.bind(this));
+    }.bind(this), function() {
+        // Category DNE
+        toastr.error('No such category '+delCategory+'! Please specify an existing category or try a different one.');
+    }.bind(this));
 }
 
 TeamStock.prototype.deleteItem = function() {
+    var delItem = window.prompt('Enter the name of the item you would like to delete:\nTHIS CANNOT BE UNDONE').toLowerCase();
+
+    this.dbCheckItem.bind(this)(delItem, function() {
+        // Item exists
+        var itemRef = this.database.ref(this.prefix + 'items/'+delItem);
+        itemRef.once('value').then(function(snapshot) {
+            itemRef.remove();
+            this.slack.bind(this)(this.auth.currentUser.displayName.split(' ')[0]+' deleted item '+delItem);
+        }.bind(this));
+        setTimeout(this.dbLoadItems.bind(this), 100);
+    }.bind(this), function() {
+        // Category DNE
+        toastr.error('No such item '+delItem+'! Please specify an existing category or try a different one.');
+    }.bind(this));
 }
 
 TeamStock.prototype.search = function(keyEvent) {
@@ -312,21 +370,21 @@ TeamStock.prototype.search = function(keyEvent) {
     var query = this.searchBar.value;
     
     if(query.length == 0) {
-        $("[id^=li-cat-]").slideDown(250);
-        $("[id^=cat-]").slideDown(250);
+        $('[id^=li-cat-]').slideDown(250);
+        $('[id^=cat-]').slideDown(250);
     }else if(query == query.toUpperCase()) {
         // Filter by category
-        $("[id^=li-cat-]").slideUp(250);
-        $("[id^=cat-]").slideUp(250);
+        $('[id^=li-cat-]').slideUp(250);
+        $('[id^=cat-]').slideUp(250);
         setTimeout(function() {
-            $("[id^=li-cat-"+query+"]").slideDown(250);
-            $("[id^=cat-"+query+"]").slideDown(250);
+            $('[id^=li-cat-'+query+']').slideDown(250);
+            $('[id^=cat-'+query+']').slideDown(250);
         }.bind(this),250);
     } else {
         // Filter by category
-        $("[id^=li-item-]").slideUp(250);
+        $('[id^=li-item-]').slideUp(250);
         setTimeout(function() {
-            $("[id^=li-item-"+query+"]").slideDown(250);
+            $('[id^=li-item-'+query+']').slideDown(250);
         }.bind(this),250);
     }
 }
@@ -334,13 +392,13 @@ TeamStock.prototype.search = function(keyEvent) {
 TeamStock.prototype.loadSidebarContents = function() {
     
     this.teamStorageButton.addEventListener('click', function() {
-        console.log("Switched to storage");
+        console.log('Switched to storage');
         this.setActiveTeam.bind(this)('Storage');
     }.bind(this));
     
     var teamsRef = this.database.ref(this.prefix + 'teams');
     teamsRef.on('value', function(snapshot) {
-        this.sidebarTeamsContainer.innerHTML = "";
+        this.sidebarTeamsContainer.innerHTML = '';
         Object.keys(snapshot.val()).forEach(function (teamName) {
             this.sidebarTeamsContainer.innerHTML += this.drawerItemTemplate
                 .replace(/\$NAME/g, teamName);
@@ -368,9 +426,9 @@ TeamStock.prototype.showItemModal = function(item) {
         return;
     }
     
-    this.itemModalContent.innerHTML = "<h4>"+item.name+"</h4>";
-    this.itemModalContent.innerHTML += "<p>"+item.description+"</p>";
-    this.itemModalChanges.innerHTML = "";
+    this.itemModalContent.innerHTML = '<h4>'+item.name+'</h4>';
+    this.itemModalContent.innerHTML += '<p>'+item.description+'</p>';
+    this.itemModalChanges.innerHTML = '';
     this.setControlState(false);
     $(this.itemModal).slideDown(200);
     
@@ -378,8 +436,8 @@ TeamStock.prototype.showItemModal = function(item) {
 
     setTimeout(function() {
     
-        var distribRef = this.database.ref(this.prefix + 'items/'+item.name+"/distribution");
-        var teamsRef = this.database.ref(this.prefix + "teams");
+        var distribRef = this.database.ref(this.prefix + 'items/'+item.name+'/distribution');
+        var teamsRef = this.database.ref(this.prefix + 'teams');
         
         var appendTeams = function(distribution, teams) {
             if(!teams) {
@@ -403,11 +461,11 @@ TeamStock.prototype.showItemModal = function(item) {
                             changes[team] = 1;
                         }
                         this.itemModalChanges.innerHTML = JSON.stringify(changes)
-                            .replace("}","</label>")
-                            .replace(/\:/g,":  ")
-                            .replace(/\,/g,"<br>")
-                            .replace(/\"/g,"")
-                            .replace("{","<label><b>Changes</b><br>");
+                            .replace('}','</label>')
+                            .replace(/\:/g,':  ')
+                            .replace(/\,/g,'<br>')
+                            .replace(/\"/g,'')
+                            .replace('{','<label><b>Changes</b><br>');
                     }.bind(this));  
 
                     minusButton.addEventListener('click', function() {
@@ -417,11 +475,11 @@ TeamStock.prototype.showItemModal = function(item) {
                             changes[team] = -1;
                         } 
                         this.itemModalChanges.innerHTML = JSON.stringify(changes)
-                            .replace("}","</label>")
-                            .replace(/\:/g,":  ")
-                            .replace(/\,/g,"<br>")
-                            .replace(/\"/g,"")
-                            .replace("{","<label><b>Changes</b><br>");
+                            .replace('}','</label>')
+                            .replace(/\:/g,':  ')
+                            .replace(/\,/g,'<br>')
+                            .replace(/\"/g,'')
+                            .replace('{','<label><b>Changes</b><br>');
                     }.bind(this));
 
                     $('#item-modal-loading').slideUp();
@@ -434,8 +492,6 @@ TeamStock.prototype.showItemModal = function(item) {
             if(!snapshot.val()) {
                return;
             }
-            
-            console.log(snapshot.val());
             
             var distribution = snapshot.val();
             appendTeams.bind(this)(distribution);
@@ -454,12 +510,17 @@ TeamStock.prototype.showItemModal = function(item) {
             this.itemModalDoneButton.addEventListener('click', function() {
                 Object.keys(changes).forEach(function (team) {
                     console.log('adding '+changes[team]+' to ' + parseInt(distribution[team]));
-                    distribution[team] = parseInt(distribution[team] || "0")+changes[team];
+                    distribution[team] = parseInt(distribution[team] || '0')+changes[team];
                 }.bind(this));
 
                 distribRef.update(distribution);
-                toastr.success("Changes made successfully");
-                this.slack.bind(this)("*"+this.auth.currentUser.displayName.split(" ")[0] + " made the following movements of "+item.name+":*\n_" + JSON.stringify(changes)+"_");
+                toastr.success('Changes made successfully');
+                this.slack.bind(this)('*'+this.auth.currentUser.displayName.split(' ')[0] + ' made the following movements of '+item.name+':*\n' + JSON.stringify(changes)
+                            .replace('}','')
+                            .replace(/\:/g,':  ')
+                            .replace(/\,/g,'\n')
+                            .replace(/\"/g,'')
+                            .replace('{','```\n')+'\n```');
                 this.hideItemModal.bind(this)();
             }.bind(this));
         }.bind(this));  
@@ -476,8 +537,8 @@ TeamStock.prototype.hideItemModal = function() {
     doneButton.parentNode.replaceChild(newButton, doneButton);
     this.itemModalDoneButton = newButton;
     
-    this.itemModalContent.innerHTML = "";
-    this.itemModalChanges.innerHTML = "";
+    this.itemModalContent.innerHTML = '';
+    this.itemModalChanges.innerHTML = '';
     $(this.itemModal).fadeOut(200);
     $('#item-modal-loading').slideDown();
     this.setControlState(true);
@@ -501,7 +562,7 @@ TeamStock.prototype.showSettingsModal = function() {
             return;
         }
         
-        this.settingsModalUserTeam.value = snapshot.val()['team'] || "";
+        this.settingsModalUserTeam.value = snapshot.val()['team'] || '';
         
         console.log(snapshot.val());
         
@@ -513,7 +574,7 @@ TeamStock.prototype.showSettingsModal = function() {
                 var userRef = this.database.ref(this.prefix + 'users/'+this.auth.currentUser.uid);
 
                 userRef.update({
-                    'team': this.settingsModalUserTeam.value || ""
+                    'team': this.settingsModalUserTeam.value || ''
                 });
             }.bind(this));
 
@@ -522,15 +583,15 @@ TeamStock.prototype.showSettingsModal = function() {
                 if(!snapshot.val()) {
                     return;
                 }
-                this.settingsModalWebhook.value = snapshot.val()['webhook'] || "";
-                this.settingsModalChannel.value = snapshot.val()['channel'] || "";
+                this.settingsModalWebhook.value = snapshot.val()['webhook'] || '';
+                this.settingsModalChannel.value = snapshot.val()['channel'] || '';
                 this.settingsModalSlackEnabled.checked = snapshot.val()['slackEnabled'];
                 this.settingsModalSlackEnabled.setAttribute('checked', snapshot.val()['slackEnabled']);
                 
             }.bind(this));
             
-            this.settingsModalUsers.innerHTML = "";
-            this.settingsModalTeams.innerHTML = "";
+            this.settingsModalUsers.innerHTML = '';
+            this.settingsModalTeams.innerHTML = '';
                         
             var teamsRef = this.database.ref(this.prefix + 'teams/');
             
@@ -545,13 +606,13 @@ TeamStock.prototype.showSettingsModal = function() {
                     setTimeout(function() {// Allows time to append html before trying to manipulate
                         var delButton = document.getElementById('team-'+teamId+'-del');
                         delButton.addEventListener('click', function() {
-                            var confirm = window.prompt("All parts will be moved to storage. Enter team name ("+teamId+") to confirm deletion:");
+                            var confirm = window.prompt('All parts will be moved to storage. Enter team name ('+teamId+') to confirm deletion:');
                             if(confirm == teamId) {
                                 var itemsRef =  this.database.ref(this.prefix + 'items/');
                                 itemsRef.once('value', function(snapshot) {
                                     Object.keys(snapshot.val()).forEach(function (item) {
                                         var distribution = snapshot.val()[item].distribution;
-                                        distribution['Storage'] = parseInt(distribution['Storage']) + parseInt(distribution[teamId] || "0");
+                                        distribution['Storage'] = parseInt(distribution['Storage']) + parseInt(distribution[teamId] || '0');
                                         delete distribution[teamId];
                                         itemsRef.child(item).child('distribution').set(distribution);
                                     }.bind(this));
@@ -559,7 +620,7 @@ TeamStock.prototype.showSettingsModal = function() {
                                 }.bind(this));
                                 teamsRef.child(teamId).remove();
                             } else {
-                                toastr.error("Team not deleted (cancelled or names did not match)");
+                                toastr.error('Team not deleted (cancelled or names did not match)');
                             }
                         }.bind(this));
                     }.bind(this),100);
@@ -587,7 +648,7 @@ TeamStock.prototype.showSettingsModal = function() {
                         console.log(toggle);
                         toggle.addEventListener('change', function(event) {
                             if(uid == this.auth.currentUser.uid) {
-                                if(!window.confirm("Are you sure you want to change your own permissions? You may not be able to change them back")) {
+                                if(!window.confirm('Are you sure you want to change your own permissions? You may not be able to change them back')) {
                                     event.preventDefault();
                                     return;
                                 }
@@ -601,16 +662,16 @@ TeamStock.prototype.showSettingsModal = function() {
                                'active': toggle.checked
                             }, function(error) {
                                 if(error) {
-                                    toastr.error("Unable to " + 
-                                           (toggle.checked ? "grant access to " : "revoke access from ") +
-                                            snapshot.val()[uid]['name'] +" - "+snapshot.val()[uid]['email']);
+                                    toastr.error('Unable to ' + 
+                                           (toggle.checked ? 'grant access to ' : 'revoke access from ') +
+                                            snapshot.val()[uid]['name'] +' - '+snapshot.val()[uid]['email']);
                                 } else {
-                                    toastr.success("Successfully " + 
-                                           (toggle.checked ? "granted access to " : "revoked access from ") +
-                                            snapshot.val()[uid]['name'] +" - "+snapshot.val()[uid]['email']);
-                                    this.slack.bind(this)("_" +this.auth.currentUser.displayName.split(" ")[0] +
-                                            (toggle.checked ? " granted access to " : " revoked access from ") +
-                                            snapshot.val()[uid]['name'] +" - "+snapshot.val()[uid]['email']);
+                                    toastr.success('Successfully ' + 
+                                           (toggle.checked ? 'granted access to ' : 'revoked access from ') +
+                                            snapshot.val()[uid]['name'] +' - '+snapshot.val()[uid]['email']);
+                                    this.slack.bind(this)('_' +this.auth.currentUser.displayName.split(' ')[0] +
+                                            (toggle.checked ? ' granted access to ' : ' revoked access from ') +
+                                            snapshot.val()[uid]['name'] +' - '+snapshot.val()[uid]['email']);
                                 }
                             }.bind(this));
 
@@ -624,7 +685,7 @@ TeamStock.prototype.showSettingsModal = function() {
                         console.log(toggle);
                         toggle.addEventListener('change', function(event) {
                             if(uid == this.auth.currentUser.uid) {
-                                if(!window.confirm("Are you sure you want to change your own permissions? You may not be able to change them back")) {
+                                if(!window.confirm('Are you sure you want to change your own permissions? You may not be able to change them back')) {
                                     event.preventDefault();
                                 }
                             }
@@ -637,13 +698,13 @@ TeamStock.prototype.showSettingsModal = function() {
                                'admin': toggle.checked
                             }, function(error) {
                                 if(error) {
-                                    toastr.error("Unable to " + 
-                                           (toggle.checked ? "grant admin to " : "revoke admin from ") +
-                                            snapshot.val()[uid]['name'] +" - "+snapshot.val()[uid]['email']);
+                                    toastr.error('Unable to ' + 
+                                           (toggle.checked ? 'grant admin to ' : 'revoke admin from ') +
+                                            snapshot.val()[uid]['name'] +' - '+snapshot.val()[uid]['email']);
                                 } else {
-                                    toastr.success("Successfully " + 
-                                           (toggle.checked ? "granted admin to " : "revoked admin from ") +
-                                            snapshot.val()[uid]['name'] +" - "+snapshot.val()[uid]['email']);
+                                    toastr.success('Successfully ' + 
+                                           (toggle.checked ? 'granted admin to ' : 'revoked admin from ') +
+                                            snapshot.val()[uid]['name'] +' - '+snapshot.val()[uid]['email']);
                                 }
                             }.bind(this));
 
@@ -659,7 +720,7 @@ TeamStock.prototype.showSettingsModal = function() {
                 var userRef = this.database.ref(this.prefix + 'users/'+this.auth.currentUser.uid);
     
                 userRef.update({
-                    'team': this.settingsModalUserTeam.value || ""
+                    'team': this.settingsModalUserTeam.value || ''
                 }, function(error) {
                     if(error) {
                         toastr.error('Error saving user settings.');
@@ -671,8 +732,8 @@ TeamStock.prototype.showSettingsModal = function() {
                 var settingsRef = this.database.ref(this.prefix + 'settings');
 
                 settingsRef.update({
-                    'webhook': this.settingsModalWebhook.value || "",
-                    'channel': this.settingsModalChannel.value || "",
+                    'webhook': this.settingsModalWebhook.value || '',
+                    'channel': this.settingsModalChannel.value || '',
                     'slackEnabled': this.settingsModalSlackEnabled.checked
                 }, function(error) {
                     if(error) {
@@ -708,7 +769,7 @@ TeamStock.prototype.dbLoadItems = function() {
     
     this.doneLoading = false;
     
-    catRef.on('value', function(snapshot) {
+    catRef.once('value', function(snapshot) {
         this.clearList();
         
         if(snapshot.val()) {
@@ -738,17 +799,12 @@ TeamStock.prototype.dbLoadItems = function() {
         }.bind(this));
     }.bind(this));
     $('#loading-main').stop().slideUp();
-
-    
-//    while(!doneLoading) {
-//        console.log("LOL");
-//    }
     
 }
 
 TeamStock.prototype.dbCheckCategory = function(category, existsCallback, nexistsCallback) {
-    this.database.ref(this.prefix + 'categories/'+category).once('value').then(function (snapshot) {
-        if(snapshot.val()) {
+    this.database.ref(this.prefix + 'categories/').once('value').then(function (snapshot) {
+        if(category.length > 0 && category in snapshot.val()) {
             existsCallback();
         } else {
             nexistsCallback();
@@ -763,22 +819,23 @@ TeamStock.prototype.dbSaveItem = function(item) {
     itemRef.once('value').then(function (snapshot) {
         if(snapshot.val() != null) {
             // Item already exists
-            toastr.error("That item already exists!", "Uh oh..");
+            toastr.error('That item already exists!', 'Uh oh..');
         } else {
             // Item does not exist, add item
-            console.log("Adding new item to database...");
+            console.log('Adding new item to database...');
             itemRef.set({ 
                 name: item.name,
                 description: item.description,
                 category: item.category,
                 distribution: item.distribution
             }).then(function () {
-                console.log("New item added successfully!");
-                toastr.success("New item added successfully!");
-                this.slack.bind(this)("*"+this.auth.currentUser.displayName.split(" ")[0] + "* _added new item *"+item.name+"* to category *" + item.category + "*_\nQty: _"+JSON.stringify(item.distribution)+"_");
+                console.log('New item added successfully!');
+                toastr.success('New item added successfully!');
+                this.slack.bind(this)('*'+this.auth.currentUser.displayName.split(' ')[0] + '* _added new item *'+item.name+'* to category *' + item.category + '*_\nQty: _'+JSON.stringify(item.distribution)+'_');
+                this.dbLoadItems.bind(this)();
             }.bind(this)).catch(function (error) {
                 console.error('Error writing new item to Firebase Database', error);
-                toastr.error("Error saving new item to database.", "Uh oh...");
+                toastr.error('Error saving new item to database.', 'Uh oh...');
             });
         }
     }.bind(this), function(error) {
@@ -797,18 +854,19 @@ TeamStock.prototype.dbSaveCategory = function(category) {
     catRef.once('value').then(function (snapshot) {
         if(snapshot.val() != null) {
             // Category already exists
-            toastr.error("That category already exists!", "Uh oh..");
+            toastr.error('That category already exists!', 'Uh oh..');
         } else {
             // Category does not exist, add item
-            console.log("Adding new item to database...");
+            console.log('Adding new item to database...');
             catRef.set(category.description).then(function () {
                 // Allow reload:
-                toastr.success("New category added successfully!");
-                this.slack.bind(this)("*"+this.auth.currentUser.displayName.split(" ")[0] + "* _added new category *" + category.name + "*_");
+                toastr.success('New category added successfully!');
+                this.slack.bind(this)('*'+this.auth.currentUser.displayName.split(' ')[0] + '* _added new category *' + category.name + '*_');
+                this.dbLoadItems.bind(this)();
             }.bind(this)).catch(function (error) {
                 this.doneLoading = true;
                 console.error('Error writing new category to Firebase Database', error);
-                toastr.error("Error saving new category to database.", "Uh oh...");
+                toastr.error('Error saving new category to database.', 'Uh oh...');
             }.bind(this));
         }
     }.bind(this));
@@ -821,44 +879,46 @@ TeamStock.prototype.dbSaveTeam = function(team) {
     teamsRef.once('value').then(function (snapshot) {
         if(snapshot.val() != null) {
             // Team already exists
-            toastr.error("That team already exists!", "Uh oh..");
+            toastr.error('That team already exists!', 'Uh oh..');
         } else {
             // Team does not exist, add item
-            console.log("Adding new team to database...");
-            teamsRef.set("").then(function () {
-                toastr.success("New team added successfully!");
+            console.log('Adding new team to database...');
+            teamsRef.set('').then(function () {
+                toastr.success('New team added successfully!');
                 this.hideSettingsModal.bind(this)();
                 this.showSettingsModal.bind(this)();
             }.bind(this)).catch(function (error) {
                 console.error('Error writing new team to Firebase Database', error);
-                toastr.error("Error saving new team to database.", "Uh oh...");
+                toastr.error('Error saving new team to database.', 'Uh oh...');
             }.bind(this));
         }
     }.bind(this));
 }
 
 // Slack //
+//      POST Request format derrived from accepted answer at
+//      http://stackoverflow.com/questions/9713058/send-post-data-using-xmlhttprequest
 TeamStock.prototype.slack = function(message) {
     var settingsRef = this.database.ref(this.prefix + 'settings');
     settingsRef.once('value').then(function(snapshot) {
-        var url = snapshot.val()['webhook'] || "";
+        var url = snapshot.val()['webhook'] || '';
         if(!url || !snapshot.val()['slackEnabled']) {
             return;
         }
         var payload = {
-            "text":message,
-            "username": "[team-stock] " + this.auth.currentUser.displayName, 
-            "icon_emoji": ":wrench:"
+            'text':message,
+            'username': '[team-stock] ' + this.auth.currentUser.displayName, 
+            'icon_emoji': ':wrench:'
         };
         if(snapshot.val()['channel']) {
             payload['channel'] = snapshot.val()['channel'];
         }
-        var params = "payload="+JSON.stringify(payload);
+        var params = 'payload='+JSON.stringify(payload);
         var xhr = new XMLHttpRequest();
-        xhr.open("POST", url, true);
+        xhr.open('POST', url, true);
 
         //Send the proper header information along with the request
-        xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+        xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
         xhr.send(params);
     }.bind(this));
 };
@@ -903,49 +963,49 @@ TeamStock.prototype.saveUserIfNew = function(user) {
     userRef.once('value').then(function (snapshot) {
         if(snapshot.val() != null) {
             // User already exists
-            toastr.success("Welcome back, " + user.displayName + "!")
+            toastr.success('Welcome back, ' + user.displayName + '!')
             // Check if user has permission to access database
             // If not, show access denied toast
             if (!(snapshot.val().active)) {
                 //toastr signed out setup
                 toastr.options = {
-                  "closeButton": false,
-                  "debug": false,
-                  "newestOnTop": false,
-                  "progressBar": false,
-                  "positionClass": "toast-bottom-center",
-                  "preventDuplicates": false,
-                  "onclick": null,
-                  "showDuration": "-1",
-                  "hideDuration": "-1",
-                  "timeOut": "-1",
-                  "extendedTimeOut": "-1",
-                  "showEasing": "swing",
-                  "hideEasing": "linear",
-                  "showMethod": "fadeIn",
-                  "hideMethod": "fadeOut"
+                  'closeButton': false,
+                  'debug': false,
+                  'newestOnTop': false,
+                  'progressBar': false,
+                  'positionClass': 'toast-bottom-center',
+                  'preventDuplicates': false,
+                  'onclick': null,
+                  'showDuration': '-1',
+                  'hideDuration': '-1',
+                  'timeOut': '-1',
+                  'extendedTimeOut': '-1',
+                  'showEasing': 'swing',
+                  'hideEasing': 'linear',
+                  'showMethod': 'fadeIn',
+                  'hideMethod': 'fadeOut'
                 }
-                toastr.error("You do not have permission to access the database.", "Uh oh..");
+                toastr.error('You do not have permission to access the database.', 'Uh oh..');
             } else {
                 this.setActiveTeam.bind(this)(snapshot.val()['team'] || 'Storage');
 //                this.dbLoadItems.bind(this)();
             }
         } else {
             // User does not exist, add user
-            console.log("Adding new user to database...");
-            userRef.set({ // Note: New user can not write to "active" property, so it must be omitted until an admin activates the user.
+            console.log('Adding new user to database...');
+            userRef.set({ // Note: New user can not write to 'active' property, so it must be omitted until an admin activates the user.
                 uid: user.uid,
                 name: user.displayName,
                 email: user.email,
                 pic: user.photoURL
             }).then(function () {
-                console.log("New user added successfully!");
-                toastr.success("Welcome, " + user.displayName + "!");
-                this.slack.bind(this)("_New user *"+user.displayName+" - "+user.email+"* has logged in for the first time._\n" +
-                                     "_An admin must log in to enable this account._");
+                console.log('New user added successfully!');
+                toastr.success('Welcome, ' + user.displayName + '!');
+                this.slack.bind(this)('_New user *'+user.displayName+' - '+user.email+'* has logged in for the first time._\n' +
+                                     '_An admin must log in to enable this account._');
             }.bind(this)).catch(function (error) {
                 console.error('Error writing new user to Firebase Database', error);
-                toastr.error("Error saving new user to database. You may need to sign out and sign back in.", "Uh oh...");
+                toastr.error('Error saving new user to database. You may need to sign out and sign back in.', 'Uh oh...');
             });
         }
     }.bind(this));
@@ -976,21 +1036,21 @@ TeamStock.prototype.onAuthStateChanged = function (user) {
         
             //toastr signed in setup
             toastr.options = {
-              "closeButton": true,
-              "debug": false,
-              "newestOnTop": false,
-              "progressBar": false,
-              "positionClass": "toast-bottom-center",
-              "preventDuplicates": false,
-              "onclick": null,
-              "showDuration": "3000",
-              "hideDuration": "3000",
-              "timeOut": "3000",
-              "extendedTimeOut": "3000",
-              "showEasing": "swing",
-              "hideEasing": "linear",
-              "showMethod": "fadeIn",
-              "hideMethod": "fadeOut"
+              'closeButton': true,
+              'debug': false,
+              'newestOnTop': false,
+              'progressBar': false,
+              'positionClass': 'toast-bottom-center',
+              'preventDuplicates': false,
+              'onclick': null,
+              'showDuration': '3000',
+              'hideDuration': '3000',
+              'timeOut': '3000',
+              'extendedTimeOut': '3000',
+              'showEasing': 'swing',
+              'hideEasing': 'linear',
+              'showMethod': 'fadeIn',
+              'hideMethod': 'fadeOut'
             }
         toastr.clear();
         
@@ -1011,28 +1071,28 @@ TeamStock.prototype.onAuthStateChanged = function (user) {
 
         //toastr signed out setup
         toastr.options = {
-          "closeButton": false,
-          "debug": false,
-          "newestOnTop": false,
-          "progressBar": false,
-          "positionClass": "toast-bottom-center",
-          "preventDuplicates": false,
-          "onclick": null,
-          "showDuration": "-1",
-          "hideDuration": "-1",
-          "timeOut": "-1",
-          "extendedTimeOut": "-1",
-          "showEasing": "swing",
-          "hideEasing": "linear",
-          "showMethod": "fadeIn",
-          "hideMethod": "fadeOut"
+          'closeButton': false,
+          'debug': false,
+          'newestOnTop': false,
+          'progressBar': false,
+          'positionClass': 'toast-bottom-center',
+          'preventDuplicates': false,
+          'onclick': null,
+          'showDuration': '-1',
+          'hideDuration': '-1',
+          'timeOut': '-1',
+          'extendedTimeOut': '-1',
+          'showEasing': 'swing',
+          'hideEasing': 'linear',
+          'showMethod': 'fadeIn',
+          'hideMethod': 'fadeOut'
         }
         
-        this.itemList.innerHTML = " \
+        this.itemList.innerHTML = ' \
         <h3> \
             <i class=material-icons>keyboard_arrow_left</i> \
                 Open Sidebar to sign in \
-        </h3>";
+        </h3>';
         
         toastr.error('You must sign in');
         $('#loading-main').slideUp();
@@ -1043,7 +1103,11 @@ TeamStock.prototype.onAuthStateChanged = function (user) {
 
 // Startup
 window.onload = function () {
-    window.teamStock = new TeamStock();
+    // UNCOMMENT THIS LINE TO RUN MANUAL TESTS
+    /* This allows */
+//    window.teamStock = 
+    //----
+    new TeamStock();
 };
 
 // Utility
@@ -1056,7 +1120,7 @@ window.onload = function () {
 function extractDomain(url) {
     var domain;
     //find & remove protocol (http, ftp, etc.) and get domain
-    if (url.indexOf("://") > -1) {
+    if (url.indexOf('://') > -1) {
         domain = url.split('/')[2];
     }
     else {
