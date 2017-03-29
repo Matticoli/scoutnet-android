@@ -1,22 +1,3 @@
-/**
- * Copyright 2016-2017 TSA-PARTICIPANT-#2083009. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *            http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * This app utilizes the Firebase Realtime Database API, which is property of Google, Inc.
- *            https://github.com/firebase/
- */
-
 'use strict';
 
 
@@ -26,9 +7,9 @@
 // All functionality is encapsulated 
 function TeamStock() {
     //DISABLE CONSOLE FOR PRODUCTION, COMMENT FOR DEBUG MODE:
-    var console = {};
-    console.log = function(){};
-    window.console = console;
+//    var console = {};
+//    console.log = function(){};
+//    window.console = console;
     //END CONSOLE DISABLE
     
     this.checkSetup();
@@ -108,7 +89,7 @@ function TeamStock() {
 
 /* HTML Templates */
 TeamStock.prototype.listCategoryTemplate =' \
-        <li id="li-cat-$NAME" class="mdl-list__item"> \
+        <li id="li-cat-$CLASSNAME" class="mdl-list__item"> \
             <span class="mdl-list__item-primary-action"> \
                 <span class="mdl-list__item-primary-content"> \
                     <i class="material-icons  mdl-list__item-avatar">build</i> \
@@ -121,11 +102,11 @@ TeamStock.prototype.listCategoryTemplate =' \
 ';
 
 TeamStock.prototype.listItemTemplate = ' \
-        <li  id="li-item-$NAME" class="mdl-list__item">\
+        <li  id="li-item-$CLASSNAME" class="mdl-list__item">\
             <span class="mdl-list__item-secondary-action"> \
                 <span class="mdl-list__item-secondary-content"> \
                     <h5> \
-                        <i id="item-icon-$NAME" class="material-icons mdl-badge mdl-badge--overlap" data-badge="$NUM">send</i> \
+                        <i id="item-icon-$CLASSNAME" class="material-icons mdl-badge mdl-badge--overlap" data-badge="$NUM">send</i> \
                         $NAME \
                         <i hidden class="material-icons">check</i> \
                     </h5> \
@@ -272,18 +253,20 @@ TeamStock.prototype.clearList = function() {
 // Add a category to the main list
 TeamStock.prototype.appendListCategory = function(cat) {
     this.itemList.innerHTML += this.listCategoryTemplate
-        .replace(/\$NAME/g, cat);
+        .replace(/\$NAME/g, cat)
+        .replace(/\$CLASSNAME/g, cat.replace(/\"| /g, "_"));
 }
 
 // Add an item to the main list
 TeamStock.prototype.appendListItem = function(item) {
     console.log(item);
-    document.getElementById('cat-'+item.category).innerHTML += this.listItemTemplate
+    document.getElementById('cat-'+item.category.replace(/\"| /g, "_")).innerHTML += this.listItemTemplate
+        .replace(/\$CLASSNAME/g, item.name.replace(/\"| /g, "_"))
         .replace(/\$NAME/g, item.name)
         .replace(/\$NUM/g, item.distribution[this.activeTeam] || 0);
     // Delay button wiring to ensure ample time for html content to be changed.
     setTimeout(function() {
-        var listItem = document.getElementById('li-item-'+item.name);
+        var listItem = document.getElementById('li-item-'+item.name.replace(/\"| /g, "_"));
         
         listItem.addEventListener('click', function() {
             console.log('Opening item modal');
@@ -292,11 +275,12 @@ TeamStock.prototype.appendListItem = function(item) {
         
         
         var itemsRef = this.database.ref(this.prefix + 'items/'+item.name+'/distribution');
+        itemsRef.off('value');
         itemsRef.on('value', function(snapshot) {
             if(!snapshot.val()) {
                 console.error('ERROR: Updated item missing from list');
             }
-            var icon = document.getElementById('item-icon-'+item.name);
+            var icon = document.getElementById('item-icon-'+item.name.replace(/\"| /g, "_"));
             icon.setAttribute('data-badge',0);
             icon.setAttribute('data-badge',snapshot.val()[this.activeTeam] || 0);
         }.bind(this));
@@ -306,7 +290,7 @@ TeamStock.prototype.appendListItem = function(item) {
 
 // Filter categories/items based on current value in searchbar
 TeamStock.prototype.search = function(keyEvent) {
-    // Return if key is not enter
+    // Return if key is not enter or backspace or delete
     if(keyEvent.which != 13) {
         return;
     }
@@ -316,6 +300,7 @@ TeamStock.prototype.search = function(keyEvent) {
     if(query.length == 0) {
         $('[id^=li-cat-]').slideDown(250);
         $('[id^=cat-]').slideDown(250);
+        $('[id^=li-item-]').slideDown(250);
     }else if(query == query.toUpperCase()) {
         // Filter by category
         $('[id^=li-cat-]').slideUp(250);
@@ -341,6 +326,7 @@ TeamStock.prototype.loadSidebarContents = function() {
     }.bind(this));
     
     var teamsRef = this.database.ref(this.prefix + 'teams');
+    teamsRef.off('value');
     teamsRef.on('value', function(snapshot) {
         this.sidebarTeamsContainer.innerHTML = '';
         Object.keys(snapshot.val()).forEach(function (teamName) {
@@ -453,6 +439,7 @@ TeamStock.prototype.showItemModal = function(item) {
     if(!this.checkSignedIn()) {
         return;
     }
+    this.itemModalContent.innerHTML = '';
     
     this.itemModalContent.innerHTML = '<h4>'+item.name+'</h4>';
     this.itemModalContent.innerHTML += '<p>'+item.description+'</p>';
@@ -473,6 +460,9 @@ TeamStock.prototype.showItemModal = function(item) {
             }
             Object.keys(teams).forEach( function (team) {
                 console.log(team);
+                if(document.getElementById('li-team-'+team)) {
+                    return;
+                }
                 this.itemModalContent.innerHTML += this.itemModalTeamTemplate
                     .replace(/\$NAME/g, team)
                     .replace(/\$NUM/g,distribution[team] || 0);
@@ -819,6 +809,7 @@ TeamStock.prototype.dbLoadItems = function() {
         } else {
             this.doneLoading = true;
         }
+        itemsRef.off('child_added');
         itemsRef.on('child_added', function(snapshot) {
             if(!snapshot.val()) {
                 $('#loading-main').stop().slideUp();
@@ -935,33 +926,42 @@ TeamStock.prototype.dbSaveTeam = function(team) {
 // Slack Notifications //
 //      POST Request format derrived from accepted answer at
 //      http://stackoverflow.com/questions/9713058/send-post-data-using-xmlhttprequest
-// Adds 
 TeamStock.prototype.slack = function(message) {
     var settingsRef = this.database.ref(this.prefix + 'settings');
-    settingsRef.once('value').then(function(snapshot) {
-        var url = snapshot.val()['webhook'] || '';
-        if(!url || !snapshot.val()['slackEnabled']) {
-            return;
-        }
-        var payload = {
-            'text':message,
-            'username': '[team-stock] ' + this.auth.currentUser.displayName, 
-            'icon_emoji': ':wrench:'
-        };
-        if(snapshot.val()['channel']) {
-            payload['channel'] = snapshot.val()['channel'];
-        }
-        var params = 'payload='+JSON.stringify(payload);
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', url, true);
+    
+    try {    
+        settingsRef.once('value').then(function(snapshot) {
+            if(!snapshot.val()) {
+                console.log("No webhook, slack notification not sent.");
+                return;
+            }
+            var url = snapshot.val()['webhook'] || '';
+            if(!url || !snapshot.val()['slackEnabled']) {
+                console.log("No webhook or slack disabled, slack notification not sent.");
+                return;
+            }
+            var payload = {
+                'text':message,
+                'username': '[team-stock] ' + this.auth.currentUser.displayName, 
+                'icon_emoji': ':wrench:'
+            };
+            if(snapshot.val()['channel']) {
+                payload['channel'] = snapshot.val()['channel'];
+            }
+            var params = 'payload='+JSON.stringify(payload);
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', url, true);
 
-        //Send the proper header information along with the request
-        xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
-        xhr.send(params);
-    }.bind(this));
+            //Send the proper header information along with the request
+            xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+            xhr.send(params);
+        }.bind(this));
+    } catch(error) {
+        console.log("Error, slack notification not sent.");
+    }
 };
 
-// ========== Auth Functions: ========== //
+// ========== Auth Funipnctions: ========== //
 
 // Signs-in to TeamStock using Google auth popup
 TeamStock.prototype.signIn = function () {
